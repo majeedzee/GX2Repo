@@ -200,7 +200,7 @@ bool Shader::InitializeShader(ID3D11Device* device, HWND hwnd, LPCSTR vsfileName
 	ReleaseCom(pixelShaderBuffer);
 
 	matrixBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	matrixBufferDesc.ByteWidth = sizeof(matrixBufferDesc);
+	matrixBufferDesc.ByteWidth = sizeof(MatrixBuffer);
 	matrixBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	matrixBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	matrixBufferDesc.MiscFlags = 0;
@@ -236,12 +236,3 @@ void Shader::OutputShaderErrorMessage(ID3D10Blob* errorMessage, HWND hwnd, LPCST
 	MessageBox(hwnd, "Error compiling shader, Check shader-error.txt", shaderFileName, MB_OK);
 }
 
-template <typename ptr>
-void Shader::ReleaseCom(ptr &item)
-{
-	if (item != NULL)
-	{
-		item->Release();
-		item = NULL;
-	}
-}

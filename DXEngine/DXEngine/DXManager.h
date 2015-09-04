@@ -4,6 +4,8 @@
 #include <d3dcommon.h>
 #include <d3d11.h>
 
+#include "Defines.h"
+
 class DXManager
 {
 public:
@@ -20,8 +22,7 @@ public:
 	ID3D11Device* GetDevice();
 	ID3D11DeviceContext* GetDeviceContect();
 
-	template <typename ptr>
-	void ReleaseCom(ptr &item);
+	
 private:
 	bool InitializeSwapChain(HWND hwnd, bool fullscreen, int screenWidth, int screenHeight, int numerator, unsigned int denominator);
 	bool InitializeDepthBuffer(int screenWidth, int screenHeight);

@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Graphics.h"
+#include "TextureShader.h"
+#include "Texture.h"
+#include "VertexBuffer.h"
 
 class Engine
 {
@@ -25,5 +28,9 @@ private:
 
 	Graphics* m_graphics;
 	static Engine* m_instance;
+
+	VertexBuffer* m_vertexBuffer;
+	TextureShader* m_textureShader;
+	Texture* m_texture;
 };
 

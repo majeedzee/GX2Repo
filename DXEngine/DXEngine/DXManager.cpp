@@ -280,7 +280,7 @@ bool DXManager::InitializeSwapChain(HWND hwnd, bool fullscreen, int screenWidth,
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.SampleDesc.Quality = 0;
 	
-	swapChainDesc.Windowed = fullscreen;
+	swapChainDesc.Windowed = !fullscreen;
 	
 	swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 	swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
@@ -494,15 +494,7 @@ bool DXManager::InitializeZBuffer()
 	return true;
 }
 
-template <typename ptr>
-void DXManager::ReleaseCom(ptr &item)
-{
-	if (item != NULL)
-	{
-		item->Release();
-		item = NULL;
-	}
-}
+
 
 ID3D11Device* DXManager::GetDevice()
 {

@@ -4,7 +4,10 @@
 #include <D3DX10math.h>
 #include <D3DX11async.h>
 #include <fstream>
+
 using namespace std;
+
+#include "Defines.h"
 
 class Shader
 {
@@ -23,11 +26,10 @@ public:
 
 	bool IsInitialized();
 
-	template <typename ptr>
-	void ReleaseCom(ptr &item);
-
 protected:
 	virtual bool Initialize(ID3D11Device* device, HWND hwnd, LPCSTR shaderfileName, LPCSTR vertexFuncName, LPCSTR pixelFuncName);
+	
+	bool m_initialized;
 
 private:
 	struct MatrixBuffer
@@ -47,8 +49,6 @@ private:
 	ID3D11Buffer*		m_matrixBuffer;
 
 	char* m_name;
-
-	bool m_initialized;
 
 };
 
