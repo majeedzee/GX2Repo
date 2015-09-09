@@ -27,14 +27,17 @@ using namespace std;
 #pragma comment(lib, "d3d11.lib")
 
 // TODO: PART 1 STEP 1b
-//#include <DirectXMath.h>
 #include <math.h>
 #include "Trivial_VS.csh"
 #include "Trivial_PS.csh"
 #include "Algorithm.h"
 #include "Cube.h"
 #include "crosshatch.h"
-//using namespace DirectX;
+
+#include "DDSTextureLoader.h"
+
+#include <DirectXMath.h>
+using namespace DirectX;
 
 // TODO: PART 2 STEP 6
 
@@ -76,8 +79,6 @@ class DEMO_APP
 	ID3D11Buffer* VertBuffer = nullptr;
 	ID3D11Buffer* IndexBuffer = nullptr;
 
-	ID3D11Buffer* GridBuffer = nullptr;
-
 	ID3D11VertexShader* VS_Shader = nullptr;
 	ID3D11PixelShader* PS_Shader = nullptr;
 
@@ -87,6 +88,8 @@ class DEMO_APP
 
 	ID3D11SamplerState *m_sampler = nullptr;
 	ID3D11ShaderResourceView *m_shaderResource = nullptr;
+
+	ID3D10EffectVariable* m_light;
 	struct SEND_TO_VRAM
 	{
 		float constantColor[4];
@@ -120,7 +123,15 @@ public:
 	struct VertexBuffer
 	{
 		float COORD[4];
-		float m_color[4];
+		//float m_color[4];
+		float text[2];
+		float normal[3];
+	};
+
+	struct Light
+	{
+		float dir[3];
+		float pad;
 	};
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
@@ -180,6 +191,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	swapChain.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swapChain.Windowed = TRUE;
 	UINT m_DeviceFlags = 0;
+
 #if _DEBUG
 	m_DeviceFlags = D3D11_CREATE_DEVICE_DEBUG;
 #endif
@@ -194,25 +206,27 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	viewPort.Height = BACKBUFFER_HEIGHT;
 	viewPort.MinDepth = 0.0f;
 	viewPort.MaxDepth = 1.0f;
+	UINT m_verts[60];
+	VertexBuffer m_unique[12];
 
-#if Lab 8
+#if 1
 	m_unique[0].COORD[0] = 0.0f;
 	m_unique[0].COORD[1] = 0.0f;
 	m_unique[0].COORD[2] = -0.25f;
 	m_unique[0].COORD[3] = 1.0f;
-	m_unique[0].m_color[0] = 1.0f;
-	m_unique[0].m_color[1] = 0.0f;
-	m_unique[0].m_color[2] = 0.0f;
-	m_unique[0].m_color[3] = 1.0f;
+	//m_unique[0].m_color[0] = 1.0f;
+	//m_unique[0].m_color[1] = 0.0f;
+	//m_unique[0].m_color[2] = 0.0f;
+	//m_unique[0].m_color[3] = 1.0f;
 
 	m_unique[11].COORD[0] = 0.0f;
 	m_unique[11].COORD[1] = 0.0f;
 	m_unique[11].COORD[2] = 0.25f;
 	m_unique[11].COORD[3] = 1.0f;
-	m_unique[11].m_color[0] = 1.0f;
-	m_unique[11].m_color[1] = 0.0f;
-	m_unique[11].m_color[2] = 0.0f;
-	m_unique[11].m_color[3] = 1.0f;
+	//m_unique[11].m_color[0] = 1.0f;
+	//m_unique[11].m_color[1] = 0.0f;
+	//m_unique[11].m_color[2] = 0.0f;
+	//m_unique[11].m_color[3] = 1.0f;
 
 	float num = 0;
 	for (size_t i = 1; i < 6; i++)
@@ -222,10 +236,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		m_unique[i].COORD[2] = 0;
 		m_unique[i].COORD[3] = 1;
 
-		m_unique[i].m_color[0] = 1.0f;
+		/*m_unique[i].m_color[0] = 1.0f;
 		m_unique[i].m_color[1] = 1.0f;
 		m_unique[i].m_color[2] = 0.0f;
-		m_unique[i].m_color[3] = 1.0f;
+		m_unique[i].m_color[3] = 1.0f;*/
 
 		num += 72;
 	}
@@ -237,10 +251,10 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		m_unique[i].COORD[2] = 0;
 		m_unique[i].COORD[3] = 1;
 
-		m_unique[i].m_color[0] = 1.0f;
+	/*	m_unique[i].m_color[0] = 1.0f;
 		m_unique[i].m_color[1] = 0.0f;
 		m_unique[i].m_color[2] = 1.0f;
-		m_unique[i].m_color[3] = 1.0f;
+		m_unique[i].m_color[3] = 1.0f;*/
 
 		num += 72;
 	}
@@ -324,113 +338,28 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	m_verts[58] = 11;
 	m_verts[59] = 1;
  // Lab 8
-	//VertexBuffer m_grid[2];
-	//m_grid[0].COORD[0] = -0.5;
-	//m_grid[0].COORD[1] = 0.0;
-	//m_grid[0].COORD[2] = 0.0;
-	//m_grid[0].COORD[3] = 1;
-	//m_grid[0].m_color[0] = 1.0f;
-	//m_grid[0].m_color[1] = 1.0f;
-	//m_grid[0].m_color[2] = 1.0f;
-	//m_grid[0].m_color[3] = 1.0f;
 
-	//m_grid[1].COORD[0] = -0.5;
-	//m_grid[1].COORD[1] = 0.0;
-	//m_grid[1].COORD[2] = 0.5;
-	//m_grid[1].COORD[3] = 1;
-	//m_grid[1].m_color[0] = 1.0f;
-	//m_grid[1].m_color[1] = 1.0f;
-	//m_grid[1].m_color[2] = 1.0f;
-	//m_grid[1].m_color[3] = 1.0f;
-	////float incrementor = -0.5;
-	////float bob = -0.5;
-	////for (size_t i = 0; i < 21; i++)
-	////{
-	////	m_grid[0][i].COORD[0] = bob;// incrementor;
-	////	m_grid[0][i].COORD[1] = 0.0;// -0.5;
-	////	m_grid[0][i].COORD[2] = incrementor;
-	////	m_grid[0][i].COORD[3] = 1;
-	////	m_grid[0][i].m_color[0] = 1.0f;
-	////	m_grid[0][i].m_color[1] = 1.0f;
-	////	m_grid[0][i].m_color[2] = 1.0f;
-	////	m_grid[0][i].m_color[3] = 1.0f;
-	////	//incrementor += 0.1;
-	////	bob += 0.1;
-	////}
-	////incrementor = 0.5;
-	////bob = -0.5;
-	////for (size_t i = 0; i < 21; i++)
-	////{
-	////	m_grid[1][i].COORD[0] = bob;//incrementor;
-	////	m_grid[1][i].COORD[1] = 0.0;//0.5;
-	////	m_grid[1][i].COORD[2] = incrementor;
-	////	m_grid[1][i].COORD[3] = 1;
-	////	m_grid[1][i].m_color[0] = 1.0f;
-	////	m_grid[1][i].m_color[1] = 1.0f;
-	////	m_grid[1][i].m_color[2] = 1.0f;
-	////	m_grid[1][i].m_color[3] = 1.0f;
-	////	//incrementor -= 0.1;
-	////	bob += 0.1;
-	////}
-	////incrementor = -0.5;
-	////for (size_t i = 0; i < 21; i++)
-	////{
-	////	m_grid[2][i].COORD[0] = -0.5;
-	////	m_grid[2][i].COORD[1] = 0.0;//incrementor;
-	////	m_grid[2][i].COORD[2] = incrementor;
-	////	m_grid[2][i].COORD[3] = 1;
-	////	m_grid[2][i].m_color[0] = 1.0f;
-	////	m_grid[2][i].m_color[1] = 1.0f;
-	////	m_grid[2][i].m_color[2] = 1.0f;
-	////	m_grid[2][i].m_color[3] = 1.0f;
-	////	incrementor += 0.1;
-	////}
-	////incrementor = -0.5;
-	////for (size_t i = 0; i < 21; i++)
-	////{
-	////	m_grid[3][i].COORD[0] = 0.5;
-	////	m_grid[3][i].COORD[1] = 0.0;// incrementor;
-	////	m_grid[3][i].COORD[2] = incrementor;
-	////	m_grid[3][i].COORD[3] = 1;
-	////	m_grid[3][i].m_color[0] = 1.0f;
-	////	m_grid[3][i].m_color[1] = 1.0f;
-	////	m_grid[3][i].m_color[2] = 1.0f;
-	////	m_grid[3][i].m_color[3] = 1.0f;
-	////	incrementor += 0.1;
-	////}
-	//D3D11_BUFFER_DESC gridBuffer;
-	//ZeroMemory(&gridBuffer, sizeof(gridBuffer));
-	//gridBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	//gridBuffer.ByteWidth = sizeof(VertexBuffer) * 2;
-	//gridBuffer.Usage = D3D11_USAGE_IMMUTABLE;
-
-
-	//D3D11_SUBRESOURCE_DATA gridData;
-	//ZeroMemory(&gridData, sizeof(gridData));
-	//gridData.pSysMem = m_grid;
-
-	//device->CreateBuffer(&gridBuffer, &gridData, &GridBuffer);
-	//D3D11_BUFFER_DESC vertBuffer;
-	//ZeroMemory(&vertBuffer, sizeof(vertBuffer));
-	//vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	//vertBuffer.ByteWidth = sizeof(VertexBuffer) * 776;
-	//vertBuffer.Usage = D3D11_USAGE_IMMUTABLE;
-	//D3D11_SUBRESOURCE_DATA vertData;
-	//ZeroMemory(&vertData, sizeof(vertData));
-	//vertData.pSysMem = m_unique;
-	//device->CreateBuffer(&vertBuffer, &vertData, &VertBuffer);
-
-	//D3D11_BUFFER_DESC indexBuffer;
-	//ZeroMemory(&indexBuffer, sizeof(indexBuffer));
-	//indexBuffer.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	//indexBuffer.ByteWidth = sizeof(UINT) * 1692;
-	//indexBuffer.Usage = D3D11_USAGE_IMMUTABLE;
-	//D3D11_SUBRESOURCE_DATA indexData;
-	//ZeroMemory(&indexData, sizeof(indexData));
-	//indexData.pSysMem = m_verts;
-	//device->CreateBuffer(&indexBuffer, &indexData, &IndexBuffer);
-#endif
 	D3D11_BUFFER_DESC vertBuffer;
+	ZeroMemory(&vertBuffer, sizeof(vertBuffer));
+	vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertBuffer.ByteWidth = sizeof(VertexBuffer) * 12;
+	vertBuffer.Usage = D3D11_USAGE_IMMUTABLE;
+	D3D11_SUBRESOURCE_DATA vertData;
+	ZeroMemory(&vertData, sizeof(vertData));
+	vertData.pSysMem = m_unique;
+	device->CreateBuffer(&vertBuffer, &vertData, &VertBuffer);
+
+	D3D11_BUFFER_DESC indexBuffer;
+	ZeroMemory(&indexBuffer, sizeof(indexBuffer));
+	indexBuffer.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	indexBuffer.ByteWidth = sizeof(UINT) * 60;
+	indexBuffer.Usage = D3D11_USAGE_IMMUTABLE;
+	D3D11_SUBRESOURCE_DATA indexData;
+	ZeroMemory(&indexData, sizeof(indexData));
+	indexData.pSysMem = m_verts;
+	device->CreateBuffer(&indexBuffer, &indexData, &IndexBuffer);
+#endif
+	/*D3D11_BUFFER_DESC vertBuffer;
 	ZeroMemory(&vertBuffer, sizeof(vertBuffer));
 	vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	vertBuffer.ByteWidth = sizeof(_OBJ_VERT_) * 776;
@@ -446,13 +375,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&indexBuffer, sizeof(indexBuffer));
 	indexBuffer.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	indexBuffer.ByteWidth = sizeof(const unsigned int) * 1692;
-	indexBuffer.Usage = D3D11_USAGE_IMMUTABLE;
+	indexBuffer.Usage = D3D11_USAGE_IMMUTABLE;*/
 
-	D3D11_SUBRESOURCE_DATA indexData;
-	ZeroMemory(&indexData, sizeof(indexData));
-	indexData.pSysMem = Cube_indicies;
+	//D3D11_SUBRESOURCE_DATA indexData;
+	//ZeroMemory(&indexData, sizeof(indexData));
+	//indexData.pSysMem = Cube_indicies;
 
-	device->CreateBuffer(&indexBuffer, &indexData, &IndexBuffer);
+	//device->CreateBuffer(&indexBuffer, &indexData, &IndexBuffer);
 
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &VS_Shader);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PS_Shader);
@@ -533,25 +462,27 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	rotate = BuildIdentityMatrix();
 	rotate.vertex[3][2] = 2;
 
-	D3D11_TEXTURE2D_DESC TextureDesc;
-	ZeroMemory(&TextureDesc, sizeof(TextureDesc));
-	TextureDesc.Width = crosshatch_width;
-	TextureDesc.Height = crosshatch_height;
-	TextureDesc.MipLevels = 12;
-	TextureDesc.ArraySize = 1;
-	TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	TextureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	TextureDesc.Usage = D3D11_USAGE_DEFAULT;
-	TextureDesc.SampleDesc.Count = 1;
+	//D3D11_TEXTURE2D_DESC TextureDesc;
+	//ZeroMemory(&TextureDesc, sizeof(TextureDesc));
+	//TextureDesc.Width = crosshatch_width;
+	//TextureDesc.Height = crosshatch_height;
+	//TextureDesc.MipLevels = 12;
+	//TextureDesc.ArraySize = 1;
+	//TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	//TextureDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	//TextureDesc.Usage = D3D11_USAGE_DEFAULT;
+	//TextureDesc.SampleDesc.Count = 1;
 
-	D3D11_SUBRESOURCE_DATA TextureData[12];
-	for (int i = 0; i < 12; i++)
-	{
-		TextureData[i].pSysMem = &crosshatch_pixels[crosshatch_leveloffsets[i]];
-		TextureData[i].SysMemPitch = (crosshatch_width >> i) * sizeof(UINT);
-		TextureData[i].SysMemSlicePitch = 0;
-	}
-	device->CreateTexture2D(&TextureDesc, TextureData, &m_texture);
+	//D3D11_SUBRESOURCE_DATA TextureData[12];
+	//for (int i = 0; i < 12; i++)
+	//{
+	//	TextureData[i].pSysMem = &crosshatch_pixels[crosshatch_leveloffsets[i]];
+	//	TextureData[i].SysMemPitch = (crosshatch_width >> i) * sizeof(UINT);
+	//	TextureData[i].SysMemSlicePitch = 0;
+	//}
+	//device->CreateTexture2D(&TextureDesc, TextureData, &m_texture);
+
+	CreateDDSTextureFromFile(device, L"lava_seamless.dds", NULL, &m_shaderResource);
 
 	D3D11_SAMPLER_DESC SamplerDesc;
 	//D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -566,14 +497,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	device->CreateSamplerState(&SamplerDesc, &m_sampler);
 
-	D3D11_SHADER_RESOURCE_VIEW_DESC ShaderViewDesc;
-	ZeroMemory(&ShaderViewDesc, sizeof(ShaderViewDesc));
-	ShaderViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	ShaderViewDesc.Texture2D.MostDetailedMip = 0;
-	ShaderViewDesc.Texture2D.MipLevels = 12;
-	ShaderViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	//D3D11_SHADER_RESOURCE_VIEW_DESC ShaderViewDesc;
+	//ZeroMemory(&ShaderViewDesc, sizeof(ShaderViewDesc));
+	//ShaderViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	//ShaderViewDesc.Texture2D.MostDetailedMip = 0;
+	//ShaderViewDesc.Texture2D.MipLevels = 12;
+	//ShaderViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 
-	device->CreateShaderResourceView(m_texture, &ShaderViewDesc, &m_shaderResource);
+	//device->CreateShaderResourceView(m_texture, &ShaderViewDesc, &m_shaderResource);
 }
 
 //************************************************************
@@ -716,7 +647,7 @@ bool DEMO_APP::Run()
 	context->Unmap(constantBuffer, NULL);
 	context->VSSetConstantBuffers(1, 1, &constantBuffer);
 
-	UINT stride = sizeof(_OBJ_VERT_);
+	UINT stride = sizeof(VertexBuffer);
 	UINT offset = 0;
 	context->IASetVertexBuffers(0, 1, &VertBuffer, &stride, &offset);
 	context->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -726,7 +657,7 @@ bool DEMO_APP::Run()
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 
-	context->DrawIndexed(1692, 0, 0);
+	context->DrawIndexed(60, 0, 0);
 
 	s_chain->Present(0, 0);
 #endif
@@ -756,8 +687,8 @@ bool DEMO_APP::ShutDown()
 	ReleaseCOM(pDepthStencil);
 	ReleaseCOM(m_shaderResource);
 	ReleaseCOM(m_sampler);
-	ReleaseCOM(GridBuffer);
-
+	//ReleaseCOM(m_light);
+	
 	UnregisterClass(L"DirectXApplication", application);
 	return true;
 }
