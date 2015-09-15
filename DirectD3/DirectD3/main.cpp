@@ -14,6 +14,7 @@
 //************************************************************
 
 #include <iostream>
+#include <thread>
 #include <ctime>
 #include "XTime.h"
 using namespace std;
@@ -41,7 +42,11 @@ using namespace DirectX;
 
 // TODO: PART 2 STEP 6
 
-
+struct Threading
+{
+	ID3D11Device** d;
+	ID3D11ShaderResourceView** s;
+};
 
 template<typename DX>
 void ReleaseCOM(DX& item);
@@ -87,7 +92,9 @@ class DEMO_APP
 	ID3D11DepthStencilView* pDSV = nullptr;
 
 	ID3D11SamplerState *m_sampler = nullptr;
+
 	ID3D11ShaderResourceView *m_shaderResource = nullptr;
+	ID3D11ShaderResourceView *m_secondshaderResource = nullptr;
 
 	ID3D10EffectVariable* m_light;
 	struct SEND_TO_VRAM
@@ -123,9 +130,7 @@ public:
 	struct VertexBuffer
 	{
 		float COORD[4];
-		//float m_color[4];
-		float text[2];
-		float normal[3];
+		float UV[2];
 	};
 
 	struct Light
@@ -137,6 +142,7 @@ public:
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 
 	bool Run();
+	//void LoadTextures();
 	bool ShutDown();
 	void Resize();
 };
@@ -144,6 +150,11 @@ public:
 //************************************************************
 //************ CREATION OF OBJECTS & RESOURCES ***************
 //************************************************************
+
+void LoadTextures(Threading *that)
+{
+	CreateDDSTextureFromFile(*that->d, L"lava_seamless.dds", NULL, *&that->s);
+}
 
 DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 {
@@ -209,24 +220,29 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	UINT m_verts[60];
 	VertexBuffer m_unique[12];
 
+	VertexBuffer m_cube[8];
+	UINT m_cubeverts[36];
 #if 1
 	m_unique[0].COORD[0] = 0.0f;
 	m_unique[0].COORD[1] = 0.0f;
 	m_unique[0].COORD[2] = -0.25f;
 	m_unique[0].COORD[3] = 1.0f;
-	//m_unique[0].m_color[0] = 1.0f;
-	//m_unique[0].m_color[1] = 0.0f;
-	//m_unique[0].m_color[2] = 0.0f;
-	//m_unique[0].m_color[3] = 1.0f;
+
+
+	/*m_unique[0].m_color[0] = 1.0f;
+	m_unique[0].m_color[1] = 0.0f;
+	m_unique[0].m_color[2] = 0.0f;
+	m_unique[0].m_color[3] = 1.0f;*/
 
 	m_unique[11].COORD[0] = 0.0f;
 	m_unique[11].COORD[1] = 0.0f;
 	m_unique[11].COORD[2] = 0.25f;
 	m_unique[11].COORD[3] = 1.0f;
-	//m_unique[11].m_color[0] = 1.0f;
-	//m_unique[11].m_color[1] = 0.0f;
-	//m_unique[11].m_color[2] = 0.0f;
-	//m_unique[11].m_color[3] = 1.0f;
+
+	/*m_unique[11].m_color[0] = 1.0f;
+	m_unique[11].m_color[1] = 0.0f;
+	m_unique[11].m_color[2] = 0.0f;
+	m_unique[11].m_color[3] = 1.0f;*/
 
 	float num = 0;
 	for (size_t i = 1; i < 6; i++)
@@ -251,7 +267,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		m_unique[i].COORD[2] = 0;
 		m_unique[i].COORD[3] = 1;
 
-	/*	m_unique[i].m_color[0] = 1.0f;
+		/*m_unique[i].m_color[0] = 1.0f;
 		m_unique[i].m_color[1] = 0.0f;
 		m_unique[i].m_color[2] = 1.0f;
 		m_unique[i].m_color[3] = 1.0f;*/
@@ -337,26 +353,132 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	m_verts[57] = 6;
 	m_verts[58] = 11;
 	m_verts[59] = 1;
+
+	/// BLAH
+	m_cube[0].COORD[0] = -0.25;
+	m_cube[0].COORD[1] = 0.25;
+	m_cube[0].COORD[2] = -0.25;
+	m_cube[0].COORD[3] = 1;
+	m_cube[0].UV[0] = 0;
+	m_cube[0].UV[1] = 0;
+			 
+	m_cube[1].COORD[0] = 0.25;
+	m_cube[1].COORD[1] = 0.25;
+	m_cube[1].COORD[2] = -0.25;
+	m_cube[1].COORD[3] = 1;
+	m_cube[1].UV[0] = 1;
+	m_cube[1].UV[1] = 0;
+			 
+	m_cube[2].COORD[0] = -0.25;
+	m_cube[2].COORD[1] = -0.25;
+	m_cube[2].COORD[2] = -0.25;
+	m_cube[2].COORD[3] = 1;
+	m_cube[2].UV[0] = 1;
+	m_cube[2].UV[1] = 1;
+			 
+	m_cube[3].COORD[0] = 0.25;
+	m_cube[3].COORD[1] = -0.25;
+	m_cube[3].COORD[2] = -0.25;
+	m_cube[3].COORD[3] = 1;
+	m_cube[3].UV[0] = 0;
+	m_cube[3].UV[1] = 1;
+			 
+	m_cube[4].COORD[0] = -0.25;
+	m_cube[4].COORD[1] = 0.25;
+	m_cube[4].COORD[2] = 0.25;
+	m_cube[4].COORD[3] = 1;
+	m_cube[4].UV[0] = 0;
+	m_cube[4].UV[1] = 0;
+
+	m_cube[5].COORD[0] = 0.25;
+	m_cube[5].COORD[1] = 0.25;
+	m_cube[5].COORD[2] = 0.25;
+	m_cube[5].COORD[3] = 1;
+	m_cube[5].UV[0] = 1;
+	m_cube[5].UV[1] = 0;
+
+	m_cube[6].COORD[0] = -0.25;
+	m_cube[6].COORD[1] = -0.25;
+	m_cube[6].COORD[2] = 0.25;
+	m_cube[6].COORD[3] = 1;
+	m_cube[6].UV[0] = 0;
+	m_cube[6].UV[1] = 1;
+
+	m_cube[7].COORD[0] = 0.25;
+	m_cube[7].COORD[1] = -0.25;
+	m_cube[7].COORD[2] = 0.25;
+	m_cube[7].COORD[3] = 1;
+	m_cube[7].UV[0] = 1;
+	m_cube[7].UV[1] = 1;
+
+	m_cubeverts[0] = 0;
+	m_cubeverts[1] = 1;
+	m_cubeverts[2] = 3;
+
+	m_cubeverts[3] = 0;
+	m_cubeverts[4] = 3;
+	m_cubeverts[5] = 2;
+
+	m_cubeverts[6] = 1;
+	m_cubeverts[7] = 5;
+	m_cubeverts[8] = 7;
+
+	m_cubeverts[9] = 1;
+	m_cubeverts[10] = 7;
+	m_cubeverts[11] = 3;
+
+	m_cubeverts[12] = 5;
+	m_cubeverts[13] = 4;
+	m_cubeverts[14] = 6;
+
+	m_cubeverts[15] = 5;
+	m_cubeverts[16] = 6;
+	m_cubeverts[17] = 7;
+
+	m_cubeverts[18] = 4;
+	m_cubeverts[19] = 0;
+	m_cubeverts[20] = 2;
+
+	m_cubeverts[21] = 4;
+	m_cubeverts[22] = 2;
+	m_cubeverts[23] = 6;
+
+	m_cubeverts[24] = 4;
+	m_cubeverts[25] = 5;
+	m_cubeverts[26] = 1;
+
+	m_cubeverts[27] = 4;
+	m_cubeverts[28] = 1;
+	m_cubeverts[29] = 0;
+
+	m_cubeverts[30] = 2;
+	m_cubeverts[31] = 3;
+	m_cubeverts[32] = 7;
+
+	m_cubeverts[33] = 2;
+	m_cubeverts[34] = 7;
+	m_cubeverts[35] = 6;
+	//////////////////
  // Lab 8
 
 	D3D11_BUFFER_DESC vertBuffer;
 	ZeroMemory(&vertBuffer, sizeof(vertBuffer));
 	vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vertBuffer.ByteWidth = sizeof(VertexBuffer) * 12;
+	vertBuffer.ByteWidth = sizeof(VertexBuffer) * 8;
 	vertBuffer.Usage = D3D11_USAGE_IMMUTABLE;
 	D3D11_SUBRESOURCE_DATA vertData;
 	ZeroMemory(&vertData, sizeof(vertData));
-	vertData.pSysMem = m_unique;
+	vertData.pSysMem = m_cube;
 	device->CreateBuffer(&vertBuffer, &vertData, &VertBuffer);
 
 	D3D11_BUFFER_DESC indexBuffer;
 	ZeroMemory(&indexBuffer, sizeof(indexBuffer));
 	indexBuffer.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBuffer.ByteWidth = sizeof(UINT) * 60;
+	indexBuffer.ByteWidth = sizeof(UINT) * 36;
 	indexBuffer.Usage = D3D11_USAGE_IMMUTABLE;
 	D3D11_SUBRESOURCE_DATA indexData;
 	ZeroMemory(&indexData, sizeof(indexData));
-	indexData.pSysMem = m_verts;
+	indexData.pSysMem = m_cubeverts;
 	device->CreateBuffer(&indexBuffer, &indexData, &IndexBuffer);
 #endif
 	/*D3D11_BUFFER_DESC vertBuffer;
@@ -389,11 +511,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	D3D11_INPUT_ELEMENT_DESC CircleVertLayout[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "UVCOORD", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "UVCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 
-	device->CreateInputLayout(CircleVertLayout, 3, Trivial_VS, sizeof(Trivial_VS), &layout);
+	device->CreateInputLayout(CircleVertLayout, 4, Trivial_VS, sizeof(Trivial_VS), &layout);
 
 	D3D11_BUFFER_DESC constbuffDesc;
 	ZeroMemory(&constbuffDesc, sizeof(constbuffDesc));
@@ -481,8 +604,15 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//	TextureData[i].SysMemSlicePitch = 0;
 	//}
 	//device->CreateTexture2D(&TextureDesc, TextureData, &m_texture);
+	
+///////////+++++++++++++++++++++++++++++++++++++++
+	Threading help;
+	help.d = &device;
+	help.s = &m_shaderResource;
+	std::thread m_thread(LoadTextures, &help);
+	m_thread.join();
 
-	CreateDDSTextureFromFile(device, L"lava_seamless.dds", NULL, &m_shaderResource);
+	CreateDDSTextureFromFile(device, L"Nebula_Sky.dds", NULL, &m_secondshaderResource);
 
 	D3D11_SAMPLER_DESC SamplerDesc;
 	//D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -562,13 +692,14 @@ void DEMO_APP::Resize()
 	return;
 }
 
+
 bool DEMO_APP::Run()
 {
 	timer.Signal();
-	if (timer.TotalTime() > 360)
-	{
-		timer.Restart();
-	}
+	//if (timer.TotalTime() > 360)
+	//{
+	//	//timer.Restart();
+	//}
 	if (GetAsyncKeyState(VK_UP) & 0x1)
 	{
 		WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0, 0.05));
@@ -636,7 +767,15 @@ bool DEMO_APP::Run()
 		context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 
+	if (timer.TotalTime() > 10)
+	{
+	context->PSSetShaderResources(0, 1, &m_secondshaderResource);
+	}
+	else
+	{
 	context->PSSetShaderResources(0, 1, &m_shaderResource);
+	}
+
 	context->PSSetSamplers(0, 1, &m_sampler);
 #if 1
 	D3D11_MAPPED_SUBRESOURCE subData;
@@ -656,8 +795,7 @@ bool DEMO_APP::Run()
 	context->IASetInputLayout(layout);
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-
-	context->DrawIndexed(60, 0, 0);
+	context->DrawIndexed(36, 0, 0);
 
 	s_chain->Present(0, 0);
 #endif
@@ -686,6 +824,7 @@ bool DEMO_APP::ShutDown()
 	ReleaseCOM(pDSV);
 	ReleaseCOM(pDepthStencil);
 	ReleaseCOM(m_shaderResource);
+	ReleaseCOM(m_secondshaderResource);
 	ReleaseCOM(m_sampler);
 	//ReleaseCOM(m_light);
 	

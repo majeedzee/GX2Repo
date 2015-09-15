@@ -3,14 +3,16 @@
 struct INPUT_VERTEX
 {
 	float3 coordinate : POSITION;
-	float3 UV : UVCOORD;
-	float4 norm : NORMAL;
+	float4 Color : COLOR;
+	float2 UV : UVCOORD;
+	float3 norm : NORMAL;
 };
 
 struct OUTPUT_VERTEX
 {
 	float4 posH : SV_POSITION;
-	float3 UV : UVCOORD;
+	float4 Color : COLOR;
+	float2 UV : UVCOORD;
 	float3 norm : NORMAL;
 };
 
@@ -44,7 +46,11 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 
 	sendToRasterizer.posH = Vector;
 	sendToRasterizer.UV = fromVertexBuffer.UV;
+	//sendToRasterizer.UV = float3(0.25,0.25,0);
+	//sendToRasterizer.UV.y = 1 - fromVertexBuffer.UV.y;
+
 	sendToRasterizer.norm = fromVertexBuffer.norm;
+	//sendToRasterizer.norm.y = 1 - fromVertexBuffer.norm.y;
 	
 	return sendToRasterizer;
 }
