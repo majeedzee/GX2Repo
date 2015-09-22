@@ -14,14 +14,19 @@ struct OUTPUT_VERTEX
 	float4 Color : COLOR;
 	float2 UV : UVCOORD;
 	float3 norm : NORMAL;
+	float3 worldpos : WORLDPOS;
 };
 
 // TODO: PART 3 STEP 2a
 cbuffer THIS_IS_VRAM : register( b0 )
 {
-	float4 constantColor;
-	float2 constantOffset;
-	float2 padding;
+	//float4 constantColor;
+	//float3 constantOffset;
+	//float1 padding;
+	float3 coordinate;
+	float4 Color;
+	float2 UV;
+	float3 norm;
 };
 cbuffer Object : register(b1)
 {
@@ -41,13 +46,14 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 
 	float4 Vector = float4(fromVertexBuffer.coordinate, 1);
 	Vector = mul(Vector, SV_WorldMatrix);
+	sendToRasterizer.worldpos = Vector.xyz;
 	Vector = mul(Vector, SV_ViewMatrix);
 	Vector = mul(Vector, SV_ProjectionMatrix);
 
 	sendToRasterizer.posH = Vector;
 	sendToRasterizer.UV = fromVertexBuffer.UV;
 	//sendToRasterizer.UV = float3(0.25,0.25,0);
-	//sendToRasterizer.UV.y = 1 - fromVertexBuffer.UV.y;
+	sendToRasterizer.UV.y = 1 - fromVertexBuffer.UV.y;
 
 	sendToRasterizer.norm = fromVertexBuffer.norm;
 	//sendToRasterizer.norm.y = 1 - fromVertexBuffer.norm.y;

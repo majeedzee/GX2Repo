@@ -49,5 +49,6 @@
   <ItemGroup>
     <Image Include="lava_seamless.dds" />
     <Image Include="Nebula_Sky.dds" />
+    <Image Include="mario.dds" />
   </ItemGroup>
 </Project>
