@@ -140,6 +140,8 @@ class DEMO_APP
 	float m_time = 0.0f;
 	Matrix rotate;
 	Matrix WorldSpaceCamera;
+
+
 public:
 	struct SIMPLE_VERTEX
 	{
@@ -172,6 +174,7 @@ void ThreadDraw(Threading *thread)
 {
 	(*thread->context)->DrawIndexed(36, 0, 0);
 }
+
 
 void LoadTextures(Threading *that)
 {
@@ -320,6 +323,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	swapChain.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
 	swapChain.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swapChain.Windowed = TRUE;
+	swapChain.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	UINT m_DeviceFlags = 0;
 
 #if _DEBUG
@@ -346,11 +350,11 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	UINT m_verts[60];
 	VertexBuffer m_unique[12];
 
-	VertexBuffer m_cube;
-	vector<VertexBuffer> m_cubeVector;
 	UINT m_cubeverts[36];
 	vector<VertexBuffer> m_modelVector;
 	vector<unsigned int> m_modelIndex;
+	VertexBuffer m_cube;
+	vector<VertexBuffer> m_cubeVector;
 #if 1
 	m_unique[0].COORD[0] = 0.0f;
 	m_unique[0].COORD[1] = 0.0f;
@@ -654,8 +658,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	load.pos[2] = 2;
 	load.rotate[0] = 0;
 	load.rotate[1] = 0;
+	
 	load.rotate[2] = 0;
-	world = MatrixMatrixMultipy(BuildRotationMatrixOnAxisY(0), Translate(load.pos[0], load.pos[1], load.pos[2]));
+	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisY(timer.Delta() * 5));
 
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -835,6 +840,33 @@ void DEMO_APP::Resize()
 
 		// Release all outstanding references to the swap chain's buffers.
 		ReleaseCOM(renderTargetView);
+		ReleaseCOM(pDSV);
+		ReleaseCOM(pDepthStencil);
+
+		D3D11_TEXTURE2D_DESC descDepth;
+		ZeroMemory(&descDepth, sizeof(descDepth));
+		descDepth.Width = BACKBUFFER_WIDTH;
+		descDepth.Height = BACKBUFFER_HEIGHT;
+		descDepth.MipLevels = 1;
+		descDepth.ArraySize = 1;
+		descDepth.Format = DXGI_FORMAT_D32_FLOAT;
+		descDepth.SampleDesc.Count = 4;
+		descDepth.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
+		descDepth.Usage = D3D11_USAGE_DEFAULT;
+		descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+		descDepth.CPUAccessFlags = 0;
+		descDepth.MiscFlags = 0;
+		device->CreateTexture2D(&descDepth, NULL, &pDepthStencil);
+
+		D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
+		ZeroMemory(&descDSV, sizeof(descDSV));
+		descDSV.Format = DXGI_FORMAT_D32_FLOAT;
+		descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+		descDSV.Texture2D.MipSlice = 0;
+
+		device->CreateDepthStencilView(pDepthStencil,
+			&descDSV,
+			&pDSV);
 
 		HRESULT hr;
 		// Preserve the existing buffer count and format.
@@ -995,11 +1027,30 @@ bool DEMO_APP::Run()
 	//memcpy(subData.pData, &toShaderWorld, sizeof(toShaderWorld));
 	//context->Unmap(constantBuffer, NULL);
 	//context->VSSetConstantBuffers(1, 1, &constantBuffer);
+	//Model load;
+	//load.pos[0] = 0;
+	//load.pos[1] = 0;
+	//load.pos[2] = 2;
+	//load.rotate[0] = 0;
+	//load.rotate[1] = 0;
+	//load.rotate[2] = 0;
+	//Matrix world;
+	//world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisY(timer.Delta() * 20));
+
+	/*for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			m_model[0].SV_WorldMatrix[i][z] = world.vertex[i][z];
+
+		}
+	}*/
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
 			toShaderWorld.SV_WorldMatrix[i][z] = m_model[0].SV_WorldMatrix[i][z];
+			
 		}
 	}
 	
@@ -1069,6 +1120,8 @@ bool DEMO_APP::Run()
 bool DEMO_APP::ShutDown()
 {
 	// TODO: PART 1 STEP 6
+	s_chain->SetFullscreenState(FALSE, NULL);
+
 	ReleaseCOM(device);
 	ReleaseCOM(context);
 	ReleaseCOM(renderTargetView);

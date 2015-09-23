@@ -17,12 +17,8 @@ struct OUTPUT_VERTEX
 	float3 worldpos : WORLDPOS;
 };
 
-// TODO: PART 3 STEP 2a
 cbuffer THIS_IS_VRAM : register( b0 )
 {
-	//float4 constantColor;
-	//float3 constantOffset;
-	//float1 padding;
 	float3 coordinate;
 	float4 Color;
 	float2 UV;
@@ -34,11 +30,6 @@ cbuffer Object : register(b1)
 	float4x4 SV_ProjectionMatrix;
 	float4x4 SV_ViewMatrix;
 };
-//cbuffer Scene : register(b2)
-//{
-//	float4x4 SV_ProjectionMatrix;
-//	float4x4 SV_ViewMatrix;
-//};
 
 OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 {

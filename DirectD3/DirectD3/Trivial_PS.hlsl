@@ -37,6 +37,9 @@ float4 main(V_OUT modulate) : SV_TARGET
 
 		//float3 final = ambColor + lightColor * diffuse + lightColor * specular;
 		//return saturate((dot(lightDir, normal) * base) + (base + ambColor));
-		return pointratio * p_ambColor * base;
+		float4 m_point = pointratio * p_ambColor * base;
+		float4 m_dir = saturate((dot(lightDir, normal) * base) + (base + ambColor));
+		return saturate(m_point + m_dir);
+		//return pointratio * p_ambColor * base;
 	//return float4(final, 1.0);
 }
