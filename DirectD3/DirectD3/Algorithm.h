@@ -45,7 +45,8 @@ Matrix BuildRotationMatrixOnAxisY(float m_angle);
 Matrix Translate(Matrix trans, float x, float y, float z);
 Matrix BuildRotationMatrixOnAxisX(double  m_angle);
 float ConvertDegreestoRadians(float m_angle);
-//void BuildProjectionMatrix(float Xscale, float Yscale, float zFar, float zNear, float &proj[4][4]);
+Matrix Scale(Matrix scale, float value);
+Matrix BuildProjectionMatrix(float width, float height);
 Matrix Inverse(Matrix inv);
 unsigned int InterpolateTwoColors(unsigned int color1, unsigned int color2, float ratio);
 
@@ -312,33 +313,44 @@ float ConvertDegreestoRadians(float m_angle)
 	return m_angle * PI / 180.0f;
 }
 
-//void BuildProjectionMatrix(float Xscale, float Yscale, float zFar, float zNear, float &proj[4][4])
-//{
-//	float project[4][4];
-//	project[0][0] = Xscale;
-//	project[0][1] = 0;
-//	project[0][2] = 0;
-//	project[0][3] = 0;
-//
-//	project[1][0] = 0;
-//	project[1][1] = Yscale;
-//	project[1][2] = 0;
-//	project[1][3] = 0;
-//
-//	project[2][0] = 0;
-//	project[2][1] = 0;
-//	project[2][2] = zFar / (zFar - zNear);
-//	project[2][3] = 1;
-//
-//	project[3][0] = 0;
-//	project[3][1] = 0;
-//	project[3][2] = (-1 * (zFar*zNear)) / (zFar - zNear);
-//	project[3][3] = 0;
-//
-//	//rotate.vertex[0][0] = rotate.vertex[2][2];
-//	*proj[1][0] = project[1][0];
-//
-//}
+Matrix Scale(Matrix scale, float value)
+{
+	Matrix temp = {};
+	scale.vertex[0][0] *= value;
+	scale.vertex[1][1] *= value;
+	scale.vertex[2][2] *= value;
+
+	temp = scale;
+	return temp;
+}
+Matrix BuildProjectionMatrix(float width, float height)
+{
+	float Yscale = 1/tan(ConvertDegreestoRadians(35));
+	float Xscale = Yscale * (width / height);
+	Matrix project;
+	project.vertex[0][0] = Xscale;
+	project.vertex[0][1] = 0;
+	project.vertex[0][2] = 0;
+	project.vertex[0][3] = 0;
+
+	project.vertex[1][0] = 0;
+	project.vertex[1][1] = Yscale;
+	project.vertex[1][2] = 0;
+	project.vertex[1][3] = 0;
+
+	project.vertex[2][0] = 0;
+	project.vertex[2][1] = 0;
+	project.vertex[2][2] = 1000 / (1000 - 0.1);
+	project.vertex[2][3] = 1;
+
+	project.vertex[3][0] = 0;
+	project.vertex[3][1] = 0;
+	project.vertex[3][2] = (-1 * (1000*0.1)) / (1000 - 0.1);
+	project.vertex[3][3] = 0;
+
+	//rotate.vertex[0][0] = rotate.vertex[2][2];
+	return project;
+}
 
 Matrix Inverse(Matrix inv)
 {

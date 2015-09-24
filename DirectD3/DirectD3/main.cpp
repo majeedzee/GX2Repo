@@ -31,6 +31,7 @@ using namespace std;
 // TODO: PART 1 STEP 1b
 #include <math.h>
 #include "Trivial_VS.csh"
+#include "VertexShader.csh"
 #include "Trivial_PS.csh"
 #include "Algorithm.h"
 #include "Cube.h"
@@ -55,6 +56,7 @@ void ReleaseCOM(DX& item);
 
 bool fullscreen = false;
 bool once = false;
+bool FULL_SCREEN = false;
 
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
@@ -89,8 +91,10 @@ class DEMO_APP
 	ID3D11Buffer* IndexBuffer = nullptr;
 	ID3D11Buffer* m_VertBuffer = nullptr;
 	ID3D11Buffer* m_IndexBuffer = nullptr;
+	ID3D11Buffer* m_InstanceBuffer = nullptr;
 
 	ID3D11VertexShader* VS_Shader = nullptr;
+	ID3D11VertexShader* VS_InstanceShader = nullptr;
 	ID3D11PixelShader* PS_Shader = nullptr;
 
 	ID3D11InputLayout* layout = nullptr;
@@ -101,6 +105,7 @@ class DEMO_APP
 
 	ID3D11ShaderResourceView *m_shaderResource = nullptr;
 	ID3D11ShaderResourceView *m_secondshaderResource = nullptr;
+	ID3D11ShaderResourceView *m_shipResource = nullptr;
 
 	ID3D11BlendState* m_alphaEnabledBlendState = nullptr;
 	
@@ -114,6 +119,14 @@ class DEMO_APP
 		float constantOffset[2];
 		float padding[2];
 	};
+
+	struct Instance
+	{
+		XMFLOAT4X4 instance[2];
+	};
+
+	Instance ship;
+
 	struct Obj
 	{
 		float SV_WorldMatrix[4][4];
@@ -140,8 +153,8 @@ class DEMO_APP
 	float m_time = 0.0f;
 	Matrix rotate;
 	Matrix WorldSpaceCamera;
-
-
+	Model m_camera;
+	UINT numverts;
 public:
 	struct SIMPLE_VERTEX
 	{
@@ -285,6 +298,21 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	application = hinst;
 	appWndProc = proc;
 
+	//WNDCLASSEX wc;
+	//wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+	//wc.lpfnWndProc = proc;
+	//wc.cbClsExtra = 0;
+	//wc.cbWndExtra = 0;
+	//wc.hInstance = hinst;
+	//wc.hIcon = LoadIcon(NULL, IDI_WINLOGO);
+	//wc.hIconSm = wc.hIcon;
+	//wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	//wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+	//wc.lpszMenuName = NULL;
+	//wc.lpszClassName = L"DirectXApplication";
+	//wc.cbSize = sizeof(WNDCLASSEX);
+	//RegisterClassEx(&wc);
+
 	WNDCLASSEX  wndClass;
 	ZeroMemory(&wndClass, sizeof(wndClass));
 	wndClass.cbSize = sizeof(WNDCLASSEX);
@@ -303,6 +331,30 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		CW_USEDEFAULT, CW_USEDEFAULT, window_size.right - window_size.left, window_size.bottom - window_size.top,
 		NULL, NULL, application, this);
 	ShowWindow(window, SW_SHOW);
+
+	//int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+	//int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+	//if (FULL_SCREEN)
+	//{
+	//	DEVMODE dmScreenSettings;
+	//	memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));
+	//	dmScreenSettings.dmSize = sizeof(dmScreenSettings);
+	//	dmScreenSettings.dmPelsWidth = (unsigned long)screenWidth;
+	//	dmScreenSettings.dmPelsHeight = (unsigned long)screenHeight;
+	//	dmScreenSettings.dmBitsPerPel = 32;
+	//	dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
+	//	ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN);
+	//}
+	//else
+	//{
+	//	screenWidth = BACKBUFFER_WIDTH;
+	//	screenHeight = BACKBUFFER_HEIGHT;
+	//}
+
+	//int nStyle = WS_OVERLAPPED | WS_SYSMENU | WS_VISIBLE | WS_CAPTION | WS_MINIMIZEBOX;
+	//CreateWindowEx(WS_EX_APPWINDOW, L"DirectXApplication", L"DirectXApplication", nStyle, 0, 0, screenWidth, screenHeight, NULL, NULL, hinst, NULL);
+	//ShowWindow(window, SW_SHOW);
 	//********************* END WARNING ************************//
 	float Sw = BACKBUFFER_WIDTH;
 	float Sh = BACKBUFFER_HEIGHT;
@@ -331,6 +383,48 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 #endif
 	HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, m_DeviceFlags, nullptr,
 		NULL, D3D11_SDK_VERSION, &swapChain, &s_chain, &device, nullptr, &context);
+
+	m_camera.pos[0] = 0;
+	m_camera.pos[1] = 0;
+	m_camera.pos[2] = 1;
+
+	m_camera.rotate[0] = 0;
+	m_camera.rotate[1] = 0;
+	m_camera.rotate[2] = 1;
+
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			m_camera.SV_WorldMatrix[i][z] = BuildIdentityMatrix().vertex[i][z];
+		}
+	}
+
+	//D3D_FEATURE_LEVEL featurelevel;
+	//
+
+	//swapChain.BufferCount = 1;
+	//swapChain.BufferDesc.Width = screenWidth;
+	//swapChain.BufferDesc.Height = screenHeight;
+	//swapChain.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//swapChain.BufferDesc.RefreshRate.Numerator = 1;
+	//swapChain.BufferDesc.RefreshRate.Denominator = 60;
+	//swapChain.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	//swapChain.OutputWindow = window;
+	//swapChain.SampleDesc.Count = 4;
+	//swapChain.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
+
+	//swapChain.Windowed = !fullscreen;
+
+	//swapChain.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	//swapChain.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+
+	//swapChain.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+	//swapChain.Flags = 0;
+
+	//D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, m_DeviceFlags,
+	//	&featurelevel, NULL, D3D11_SDK_VERSION, &swapChain, &s_chain, &device, NULL, &context);
 
 	s_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&m_texture);
 	device->CreateRenderTargetView(m_texture, nullptr, &renderTargetView);
@@ -545,56 +639,58 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	m_cube.UV[1] = 1;
 	m_cubeVector.push_back(m_cube);
 
-	m_cubeverts[0] = 0;
+	m_cubeverts[0] = 3;
 	m_cubeverts[1] = 1;
-	m_cubeverts[2] = 3;
+	m_cubeverts[2] = 0;
 
-	m_cubeverts[3] = 0;
+	m_cubeverts[3] = 2;
 	m_cubeverts[4] = 3;
-	m_cubeverts[5] = 2;
+	m_cubeverts[5] = 0;
 
-	m_cubeverts[6] = 1;
+	m_cubeverts[6] = 7;
 	m_cubeverts[7] = 5;
-	m_cubeverts[8] = 7;
+	m_cubeverts[8] = 1;
 
-	m_cubeverts[9] = 1;
+	m_cubeverts[9] = 3;
 	m_cubeverts[10] = 7;
-	m_cubeverts[11] = 3;
+	m_cubeverts[11] = 1;
 
-	m_cubeverts[12] = 5;
+	m_cubeverts[12] = 6;
 	m_cubeverts[13] = 4;
-	m_cubeverts[14] = 6;
+	m_cubeverts[14] = 5;
 
-	m_cubeverts[15] = 5;
+	m_cubeverts[15] = 7;
 	m_cubeverts[16] = 6;
-	m_cubeverts[17] = 7;
+	m_cubeverts[17] = 5;
 
-	m_cubeverts[18] = 4;
+	m_cubeverts[18] = 2;
 	m_cubeverts[19] = 0;
-	m_cubeverts[20] = 2;
+	m_cubeverts[20] = 4;
 
-	m_cubeverts[21] = 4;
+	m_cubeverts[21] = 6;
 	m_cubeverts[22] = 2;
-	m_cubeverts[23] = 6;
+	m_cubeverts[23] = 4;
 
-	m_cubeverts[24] = 4;
+	m_cubeverts[24] = 1;
 	m_cubeverts[25] = 5;
-	m_cubeverts[26] = 1;
+	m_cubeverts[26] = 4;
 
-	m_cubeverts[27] = 4;
+	m_cubeverts[27] = 0;
 	m_cubeverts[28] = 1;
-	m_cubeverts[29] = 0;
+	m_cubeverts[29] = 4;
 
-	m_cubeverts[30] = 2;
+	m_cubeverts[30] = 7;
 	m_cubeverts[31] = 3;
-	m_cubeverts[32] = 7;
+	m_cubeverts[32] = 2;
 
-	m_cubeverts[33] = 2;
+	m_cubeverts[33] = 6;
 	m_cubeverts[34] = 7;
-	m_cubeverts[35] = 6;
+	m_cubeverts[35] = 2;
+
 	//////////////////
 	// Lab 8
-	LoadObject("MyCube.obj", &m_modelVector, &m_modelIndex);
+	LoadObject("talon.obj", &m_modelVector, &m_modelIndex);
+
 	D3D11_BUFFER_DESC m_vertBuffer;
 	ZeroMemory(&m_vertBuffer, sizeof(m_vertBuffer));
 	m_vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -614,6 +710,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ZeroMemory(&m_indexData, sizeof(m_indexData));
 	m_indexData.pSysMem = &m_modelIndex[0];
 	device->CreateBuffer(&m_indexBuffer, &m_indexData, &m_IndexBuffer);
+	numverts = m_modelVector.size();
 
 	D3D11_BUFFER_DESC vertBuffer;
 	ZeroMemory(&vertBuffer, sizeof(vertBuffer));
@@ -638,11 +735,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	Model load;
 	load.pos[0] = 0;
 	load.pos[1] = 0;
-	load.pos[2] = 2;
+	load.pos[2] = 0;
 	load.rotate[0] = 0;
 	load.rotate[1] = 0;
 	load.rotate[2] = 0;
+	
 	Matrix world = MatrixMatrixMultipy(BuildRotationMatrixOnAxisY(0), Translate(load.pos[0], load.pos[1], load.pos[2]));
+	world = Scale(world, 64);
 
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -699,6 +798,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &VS_Shader);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PS_Shader);
 
+	device->CreateVertexShader(VertexShader, sizeof(VertexShader), NULL, &VS_InstanceShader);
+
 	D3D11_INPUT_ELEMENT_DESC CircleVertLayout[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -717,28 +818,38 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	constbuffDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 	device->CreateBuffer(&constbuffDesc, nullptr, &constantBuffer);
+	
 
 	//toShaderWorld.SV_ProjectionMatrix[0][0] = (2* Zn) / Sw;
-	toShaderWorld.SV_ProjectionMatrix[0][0] = 1;
-	toShaderWorld.SV_ProjectionMatrix[0][1] = 0;
-	toShaderWorld.SV_ProjectionMatrix[0][2] = 0;
-	toShaderWorld.SV_ProjectionMatrix[0][3] = 0;
+	////toShaderWorld.SV_ProjectionMatrix[0][0] = 1;
+	//toShaderWorld.SV_ProjectionMatrix[0][1] = 0;
+	//toShaderWorld.SV_ProjectionMatrix[0][2] = 0;
+	//toShaderWorld.SV_ProjectionMatrix[0][3] = 0;
 
-	toShaderWorld.SV_ProjectionMatrix[1][0] = 0;
+	//toShaderWorld.SV_ProjectionMatrix[1][0] = 0;
 	//toShaderWorld.SV_ProjectionMatrix[1][1] = (2 * Zn) / Sh;
-	toShaderWorld.SV_ProjectionMatrix[1][1] = 1;
-	toShaderWorld.SV_ProjectionMatrix[1][2] = 0;
-	toShaderWorld.SV_ProjectionMatrix[1][3] = 0;
+	////toShaderWorld.SV_ProjectionMatrix[1][1] = 1;
+	//toShaderWorld.SV_ProjectionMatrix[1][2] = 0;
+	//toShaderWorld.SV_ProjectionMatrix[1][3] = 0;
 
-	toShaderWorld.SV_ProjectionMatrix[2][0] = 0;
-	toShaderWorld.SV_ProjectionMatrix[2][1] = 0;
-	toShaderWorld.SV_ProjectionMatrix[2][2] = Zf / (Zf - Zn);
-	toShaderWorld.SV_ProjectionMatrix[2][3] = 1;
+	//toShaderWorld.SV_ProjectionMatrix[2][0] = 0;
+	//toShaderWorld.SV_ProjectionMatrix[2][1] = 0;
+	//toShaderWorld.SV_ProjectionMatrix[2][2] = Zf / (Zf - Zn);
+	//toShaderWorld.SV_ProjectionMatrix[2][3] = 1;
 
-	toShaderWorld.SV_ProjectionMatrix[3][0] = 0;
-	toShaderWorld.SV_ProjectionMatrix[3][1] = 0;
-	toShaderWorld.SV_ProjectionMatrix[3][2] = (-Zf * Zn) / (Zf - Zn);
-	toShaderWorld.SV_ProjectionMatrix[3][3] = 0;
+	//toShaderWorld.SV_ProjectionMatrix[3][0] = 0;
+	//toShaderWorld.SV_ProjectionMatrix[3][1] = 0;
+	//toShaderWorld.SV_ProjectionMatrix[3][2] = (-Zf * Zn) / (Zf - Zn);
+	//toShaderWorld.SV_ProjectionMatrix[3][3] = 0;
+
+	Matrix project = BuildProjectionMatrix(BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_ProjectionMatrix[i][z] = project.vertex[i][z];
+		}
+	}
 
 	WorldSpaceCamera = BuildIdentityMatrix();
 	for (size_t i = 0; i < 4; i++)
@@ -784,7 +895,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	m_thread.join();
 
 	CreateDDSTextureFromFile(device, L"Nebula_Sky.dds", NULL, &m_secondshaderResource);
-	//CreateDDSTextureFromFile(device, L"mario.dds", NULL, &m_secondshaderResource);
+	CreateDDSTextureFromFile(device, L"defender.dds", NULL, &m_shipResource);
 
 	D3D11_SAMPLER_DESC SamplerDesc;
 	ZeroMemory(&SamplerDesc, sizeof(SamplerDesc));
@@ -827,6 +938,24 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	//blendDesc.RenderTarget[0].BlendEnable = false;
 	//device->CreateBlendState(&blendDesc, &m_alphaDisabledBlendState);
+	Matrix identity[2];
+	identity[0] = Translate(1.0, 0, 2);
+	identity[1] = Translate(1.0, 1.0, 2);
+
+	memcpy_s(ship.instance, sizeof(Matrix) * 2, identity, sizeof(Matrix) * 2);
+	
+	D3D11_BUFFER_DESC instBuffer;
+	ZeroMemory(&instBuffer, sizeof(instBuffer));
+	instBuffer.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	instBuffer.ByteWidth = sizeof(Instance);
+	instBuffer.Usage = D3D11_USAGE_DYNAMIC;
+	instBuffer.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	D3D11_SUBRESOURCE_DATA instData;
+	ZeroMemory(&instData, sizeof(instData));
+	instData.pSysMem = &ship;
+
+	device->CreateBuffer(&instBuffer, &instData, &m_InstanceBuffer);
 }
 
 //************************************************************
@@ -834,91 +963,90 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 //************************************************************
 void DEMO_APP::Resize()
 {
-	if (s_chain)
+	if (once)
 	{
-		context->OMSetRenderTargets(0, 0, 0);
-
-		// Release all outstanding references to the swap chain's buffers.
-		ReleaseCOM(renderTargetView);
-		ReleaseCOM(pDSV);
-		ReleaseCOM(pDepthStencil);
-
-		D3D11_TEXTURE2D_DESC descDepth;
-		ZeroMemory(&descDepth, sizeof(descDepth));
-		descDepth.Width = BACKBUFFER_WIDTH;
-		descDepth.Height = BACKBUFFER_HEIGHT;
-		descDepth.MipLevels = 1;
-		descDepth.ArraySize = 1;
-		descDepth.Format = DXGI_FORMAT_D32_FLOAT;
-		descDepth.SampleDesc.Count = 4;
-		descDepth.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
-		descDepth.Usage = D3D11_USAGE_DEFAULT;
-		descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-		descDepth.CPUAccessFlags = 0;
-		descDepth.MiscFlags = 0;
-		device->CreateTexture2D(&descDepth, NULL, &pDepthStencil);
-
-		D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
-		ZeroMemory(&descDSV, sizeof(descDSV));
-		descDSV.Format = DXGI_FORMAT_D32_FLOAT;
-		descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
-		descDSV.Texture2D.MipSlice = 0;
-
-		device->CreateDepthStencilView(pDepthStencil,
-			&descDSV,
-			&pDSV);
-
-		HRESULT hr;
-		// Preserve the existing buffer count and format.
-		// Automatically choose the width and height to match the client rect for HWNDs.
-		hr = s_chain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
-
-		// Perform error handling here!
-
-		// Get buffer and create a render-target-view.
-		ID3D11Texture2D* pBuffer;
-		hr = s_chain->GetBuffer(0, __uuidof(ID3D11Texture2D),
-			(void**)&pBuffer);
-		// Perform error handling here!
-
-		hr = device->CreateRenderTargetView(pBuffer, NULL,
-			&renderTargetView);
-		// Perform error handling here!
-		pBuffer->Release();
-
-		context->OMSetRenderTargets(1, &renderTargetView, NULL);
-
-		// Set up the viewport.
-		D3D11_VIEWPORT vp;
-		vp.Width = GetSystemMetrics(SM_CXSCREEN);
-		vp.Height = GetSystemMetrics(SM_CYSCREEN);
-		vp.MinDepth = 0.0f;
-		vp.MaxDepth = 1.0f;
-		vp.TopLeftX = 0;
-		vp.TopLeftY = 0;
-		context->RSSetViewports(0, &vp);
-
-		D3D11_VIEWPORT m_vp;
-		m_vp.Width = GetSystemMetrics(SM_CXSCREEN/2);
-		m_vp.Height = GetSystemMetrics(SM_CYSCREEN/2);
-		m_vp.MinDepth = 0.0f;
-		m_vp.MaxDepth = 1.0f;
-		m_vp.TopLeftX = 0;
-		m_vp.TopLeftY = 0;
-		context->RSSetViewports(1, &m_vp);
-
-		if (!once)
+		if (fullscreen)
 		{
-			DEVMODE dmScreenSettings;
-			memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));
-			dmScreenSettings.dmSize = sizeof(dmScreenSettings);
-			dmScreenSettings.dmPelsWidth = (unsigned long)GetSystemMetrics(SM_CXSCREEN);
-			dmScreenSettings.dmPelsHeight = (unsigned long)GetSystemMetrics(SM_CYSCREEN);
-			dmScreenSettings.dmBitsPerPel = 32;
-			dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
-			ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN);
-			once = true;
+			BOOL full = false;
+			s_chain->GetFullscreenState(&full, NULL);
+			s_chain->SetFullscreenState(!full, NULL);
+			fullscreen = false;
 		}
+		if (s_chain)
+		{
+			//context->OMSetRenderTargets(0, 0, 0);
+			
+			ReleaseCOM(renderTargetView);
+			ReleaseCOM(pDSV);
+			ReleaseCOM(pDepthStencil);
+			ReleaseCOM(m_texture);
+
+			HRESULT hr;
+			hr = s_chain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+			DXGI_SWAP_CHAIN_DESC swapC;
+			s_chain->GetDesc(&swapC);
+
+			Matrix project = BuildProjectionMatrix(swapC.BufferDesc.Width, swapC.BufferDesc.Height);
+			for (size_t i = 0; i < 4; i++)
+			{
+				for (size_t z = 0; z < 4; z++)
+				{
+					toShaderWorld.SV_ProjectionMatrix[i][z] = project.vertex[i][z];
+				}
+			}
+
+			D3D11_TEXTURE2D_DESC descDepth;
+			ZeroMemory(&descDepth, sizeof(descDepth));
+			descDepth.Width = swapC.BufferDesc.Width;
+			descDepth.Height = swapC.BufferDesc.Height;
+			descDepth.MipLevels = 1;
+			descDepth.ArraySize = 1;
+			descDepth.Format = DXGI_FORMAT_D32_FLOAT;
+			descDepth.SampleDesc.Count = 4;
+			descDepth.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
+			descDepth.Usage = D3D11_USAGE_DEFAULT;
+			descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+			descDepth.CPUAccessFlags = 0;
+			descDepth.MiscFlags = 0;
+			device->CreateTexture2D(&descDepth, NULL, &pDepthStencil);
+
+			D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
+			ZeroMemory(&descDSV, sizeof(descDSV));
+			descDSV.Format = DXGI_FORMAT_D32_FLOAT;
+			descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+			descDSV.Texture2D.MipSlice = 0;
+
+			device->CreateDepthStencilView(pDepthStencil,
+				&descDSV,
+				&pDSV);
+
+			ID3D11Texture2D* pBuffer;
+			hr = s_chain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+				(LPVOID*)&pBuffer);
+
+			hr = device->CreateRenderTargetView(pBuffer, NULL,
+				&renderTargetView);
+			pBuffer->Release();
+
+			context->OMSetRenderTargets(1, &renderTargetView, NULL);
+
+			viewPort.Width = swapC.BufferDesc.Width;
+			viewPort.Height = swapC.BufferDesc.Height;
+			viewPort.MinDepth = 0.0f;
+			viewPort.MaxDepth = 1.0f;
+			viewPort.TopLeftX = 0;
+			viewPort.TopLeftY = 0;
+			context->RSSetViewports(0, &viewPort);
+
+			m_viewPort.Width = swapC.BufferDesc.Width / 2;
+			m_viewPort.Height = swapC.BufferDesc.Height / 2;
+			m_viewPort.MinDepth = 0.0f;
+			m_viewPort.MaxDepth = 1.0f;
+			m_viewPort.TopLeftX = 0;
+			m_viewPort.TopLeftY = 0;
+			context->RSSetViewports(1, &m_viewPort);
+		}
+		once = false;
 	}
 	return;
 }
@@ -933,23 +1061,33 @@ bool DEMO_APP::Run()
 	//}
 	if (GetAsyncKeyState(VK_UP) & 0x1)
 	{
-		WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0, 0.05));
+		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0, 0.05));
+		m_camera.pos[2] += 0.05;
 	}
 	if (GetAsyncKeyState(VK_DOWN) & 0x1)
 	{
-		WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0, -0.05));
+		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0, -0.05));
+		m_camera.pos[2] -= 0.05;
 	}
 	if (GetAsyncKeyState(VK_RIGHT) & 0x1)
 	{
-		WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0.05, 0, 0));
+		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0.05, 0, 0));
+		m_camera.pos[0] += 0.05;
 	}
 	if (GetAsyncKeyState(VK_LEFT) & 0x1)
 	{
-		WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(-0.05, 0, 0));
+		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(-0.05, 0, 0));
+		m_camera.pos[0] -= 0.05;
 	}
 	if (GetAsyncKeyState(VK_SPACE) & 0x1)
 	{
-		WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0.05, 0));
+		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0.05, 0));
+		m_camera.pos[1] += 0.05;
+	}
+	if (GetAsyncKeyState(VK_SHIFT) & 0x1)
+	{
+		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0.05, 0));
+		m_camera.pos[1] -= 0.05;
 	}
 
 	if (GetAsyncKeyState(VK_NUMPAD4) & 0x1)
@@ -962,21 +1100,31 @@ bool DEMO_APP::Run()
 	}
 	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1)
 	{
-		WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, BuildRotationMatrixOnAxisY(0.05));
+		WorldSpaceCamera = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(m_camera.rotate[1]));
 	}
 	if (GetAsyncKeyState(VK_NUMPAD2) & 0x1)
 	{
-		WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, BuildRotationMatrixOnAxisY(-0.05));
+		WorldSpaceCamera = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(-m_camera.rotate[1]));
 	}
+	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(m_camera.rotate[1]));
 
-	Matrix inv = Inverse(WorldSpaceCamera);
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
-			toShaderWorld.SV_ViewMatrix[i][z] = inv.vertex[i][z];
+			m_camera.SV_WorldMatrix[i][z] = cam.vertex[i][z];
 		}
 	}
+
+	//Matrix inv = Inverse(WorldSpaceCamera);
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_ViewMatrix[i][z] = m_camera.SV_WorldMatrix[i][z];
+		}
+	}
+
 	rotate = MatrixMatrixMultipy(BuildRotationMatrixOnAxisY(ConvertDegreestoRadians(timer.Delta() * 20)), rotate);
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -986,19 +1134,23 @@ bool DEMO_APP::Run()
 		}
 	}
 
-	if (fullscreen)
-	{
-		Resize();
-	}
-	else
-	{
-		context->OMSetRenderTargets(1, &renderTargetView, pDSV);
-		context->RSSetViewports(1, &viewPort);
+	D3D11_MAPPED_SUBRESOURCE camData;
+	ZeroMemory(&camData, sizeof(camData));
 
-		float m_color[4] = { 1.0f, 1.0f, 1.0f, 1 };
-		context->ClearRenderTargetView(renderTargetView, m_color);
-		context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	}
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &camData);
+	memcpy(camData.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
+	context->VSSetConstantBuffers(1, 1, &constantBuffer);
+
+	
+	Resize();
+	
+	context->OMSetRenderTargets(1, &renderTargetView, pDSV);
+	context->RSSetViewports(1, &viewPort);
+
+	float m_color[4] = { 1.0f, 1.0f, 1.0f, 1 };
+	context->ClearRenderTargetView(renderTargetView, m_color);
+	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 	float blendFactor[4];
 	blendFactor[0] = 0.0f;
@@ -1020,41 +1172,27 @@ bool DEMO_APP::Run()
 
 	context->OMSetBlendState(m_alphaEnabledBlendState, blendFactor, 0xFFFFFFFF);
 #if 1
-	//D3D11_MAPPED_SUBRESOURCE subData;
-	//ZeroMemory(&subData, sizeof(subData));
 
-	//context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &subData);
-	//memcpy(subData.pData, &toShaderWorld, sizeof(toShaderWorld));
-	//context->Unmap(constantBuffer, NULL);
-	//context->VSSetConstantBuffers(1, 1, &constantBuffer);
-	//Model load;
-	//load.pos[0] = 0;
-	//load.pos[1] = 0;
-	//load.pos[2] = 2;
-	//load.rotate[0] = 0;
-	//load.rotate[1] = 0;
-	//load.rotate[2] = 0;
-	//Matrix world;
-	//world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisY(timer.Delta() * 20));
-
-	/*for (size_t i = 0; i < 4; i++)
+	m_model[0].pos[0] = -m_camera.pos[0];
+	m_model[0].pos[1] = -m_camera.pos[1];
+	m_model[0].pos[2] = -m_camera.pos[2];
+	Matrix mult = MatrixMatrixMultipy(Translate(m_model[0].pos[0], m_model[0].pos[1], m_model[0].pos[2]), BuildRotationMatrixOnAxisY(m_model[0].rotate[1]));
+	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
-			m_model[0].SV_WorldMatrix[i][z] = world.vertex[i][z];
-
+			m_model[0].SV_WorldMatrix[i][z] = mult.vertex[i][z];
 		}
-	}*/
+	}
+
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
 			toShaderWorld.SV_WorldMatrix[i][z] = m_model[0].SV_WorldMatrix[i][z];
-			
+
 		}
 	}
-	
-
 	D3D11_MAPPED_SUBRESOURCE objData;
 	ZeroMemory(&objData, sizeof(objData));
 
@@ -1077,6 +1215,7 @@ bool DEMO_APP::Run()
 	std::thread m_thread(ThreadDraw, &drawthread);
 	m_thread.join();
 
+	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -1090,20 +1229,19 @@ bool DEMO_APP::Run()
 	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
 	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
 	context->Unmap(constantBuffer, NULL);
-	context->VSSetConstantBuffers(1, 1, &constantBuffer);
 
+	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
+	context->PSSetShaderResources(0, 1, &m_shipResource);
+	context->VSSetShader(VS_InstanceShader, NULL, 0);
 	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
 	context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	//context->VSSetShader(VS_Shader, 0, 0);
-	//context->PSSetShader(PS_Shader, 0, 0);
-	//context->IASetInputLayout(layout);
-	//context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	context->Draw(36, 0);
+	context->DrawInstanced(numverts, 2, 0, 0);
 
 	context->RSSetViewports(1, &m_viewPort);
 
-	context->Draw(36, 0);
+	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->DrawInstanced(numverts, 2, 0, 0);
 
 
 	context->RSSetState(m_RasterState);
@@ -1143,8 +1281,10 @@ bool DEMO_APP::ShutDown()
 	ReleaseCOM(m_alphaEnabledBlendState);
 	ReleaseCOM(m_VertBuffer);
 	ReleaseCOM(m_IndexBuffer);
-	//ReleaseCOM(m_light);
-	
+	ReleaseCOM(m_InstanceBuffer);
+	ReleaseCOM(VS_InstanceShader);
+	ReleaseCOM(m_shipResource);
+
 	UnregisterClass(L"DirectXApplication", application);
 	return true;
 }
@@ -1186,7 +1326,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		if (wParam == VK_TAB)
 		{
 			fullscreen = true;
+			once = true;
 		}
+	}break;
+	case WM_SIZE:
+	{
+		once = true;
 	}break;
 	case (WM_DESTROY) : { PostQuitMessage(0); }
 						break;

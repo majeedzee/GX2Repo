@@ -45,10 +45,12 @@
   <ItemGroup>
     <FxCompile Include="Trivial_PS.hlsl" />
     <FxCompile Include="Trivial_VS.hlsl" />
+    <FxCompile Include="VertexShader.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="lava_seamless.dds" />
     <Image Include="Nebula_Sky.dds" />
     <Image Include="mario.dds" />
+    <Image Include="defender.dds" />
   </ItemGroup>
 </Project>

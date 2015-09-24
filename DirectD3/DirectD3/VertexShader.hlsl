@@ -17,7 +17,7 @@ struct OUTPUT_VERTEX
 	float3 worldpos : WORLDPOS;
 };
 
-cbuffer THIS_IS_VRAM : register( b0 )
+cbuffer THIS_IS_VRAM : register(b0)
 {
 	float3 coordinate;
 	float4 Color;
@@ -31,14 +31,18 @@ cbuffer Object : register(b1)
 	float4x4 SV_ViewMatrix;
 };
 
+cbuffer Instance : register(b2)
+{
+	float4x4 instance[2];
+};
 
-OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer)
+OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer, uint sub : SV_InstanceID)
 {
 	OUTPUT_VERTEX sendToRasterizer = (OUTPUT_VERTEX)0;
 
 	float4 Vector = float4(fromVertexBuffer.coordinate, 1);
 
-	Vector = mul(Vector, SV_WorldMatrix);
+		Vector = mul(Vector, instance[sub]);
 	sendToRasterizer.worldpos = Vector.xyz;
 	Vector = mul(Vector, SV_ViewMatrix);
 	Vector = mul(Vector, SV_ProjectionMatrix);
@@ -50,6 +54,6 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer)
 
 	sendToRasterizer.norm = fromVertexBuffer.norm;
 	//sendToRasterizer.norm.y = 1 - fromVertexBuffer.norm.y;
-	
+
 	return sendToRasterizer;
 }
