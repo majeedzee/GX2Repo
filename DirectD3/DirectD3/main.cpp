@@ -175,7 +175,7 @@ public:
 	};
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
-
+	
 	bool Run();
 	//void LoadTextures();
 	bool ShutDown();
