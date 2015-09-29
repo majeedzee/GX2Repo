@@ -24,7 +24,6 @@ cbuffer THIS_IS_VRAM : register(b0)
 	float2 UV;
 	float3 norm;
 };
-
 cbuffer Object : register(b1)
 {
 	float4x4 SV_WorldMatrix;
@@ -34,17 +33,16 @@ cbuffer Object : register(b1)
 
 cbuffer Instance : register(b2)
 {
-	float4x4 Inst[2];
+	float4x4 instance[2];
 };
 
-
-OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer, uint sub : SV_InstanceId)
+OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer, uint sub : SV_InstanceID)
 {
 	OUTPUT_VERTEX sendToRasterizer = (OUTPUT_VERTEX)0;
 
 	float4 Vector = float4(fromVertexBuffer.coordinate, 1);
 
-		Vector = mul(Vector, SV_WorldMatrix);
+		Vector = mul(Vector, instance[sub]);
 	sendToRasterizer.worldpos = Vector.xyz;
 	Vector = mul(Vector, SV_ViewMatrix);
 	Vector = mul(Vector, SV_ProjectionMatrix);

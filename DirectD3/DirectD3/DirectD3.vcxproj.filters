@@ -59,11 +59,14 @@
     <FxCompile Include="Trivial_VS.hlsl" />
     <FxCompile Include="VertexShader.hlsl" />
     <FxCompile Include="PixelShader.hlsl" />
+    <FxCompile Include="SkyboxVertex.hlsl" />
+    <FxCompile Include="SkyboxPixel.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="lava_seamless.dds" />
     <Image Include="Nebula_Sky.dds" />
     <Image Include="mario.dds" />
     <Image Include="defender.dds" />
+    <Image Include="KingdomHearts.dds" />
   </ItemGroup>
 </Project>

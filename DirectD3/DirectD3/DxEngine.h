@@ -102,6 +102,8 @@ private:
 
 	ID3D11VertexShader*		VS_Shader;
 	ID3D11VertexShader*		VS_InstanceShader;
+	ID3D11VertexShader*		VS_SkyboxShader;
+	ID3D11PixelShader*		PS_SkyboxShader;
 	ID3D11PixelShader*		PS_PixelShader;
 	ID3D11PixelShader*		PS_Shader;
 

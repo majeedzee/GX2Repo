@@ -4,6 +4,8 @@
 #include "VertexShader.csh"
 #include "PixelShader.csh"
 #include "Trivial_PS.csh"
+#include "SkyboxPixel.csh"
+#include "SkyboxVertex.csh"
 
 
 
@@ -35,6 +37,8 @@ DxEngine::DxEngine()
 	m_shipResource = nullptr;
 	m_alphaEnabledBlendState = nullptr;
 	m_RasterState = nullptr;
+	VS_SkyboxShader = nullptr;
+	PS_SkyboxShader = nullptr;
 
 	fullscreen = false;
 	once = false;
@@ -72,6 +76,9 @@ void DxEngine::ShutDown()
 	ReleaseCOM(VS_InstanceShader);
 	ReleaseCOM(m_shipResource);
 	ReleaseCOM(PS_PixelShader);
+	ReleaseCOM(VS_SkyboxShader);
+	ReleaseCOM(PS_SkyboxShader);
+
 }
 
 bool DxEngine::LoadObject(char* path, vector<VertexBuffer> *out_vertices, vector< unsigned int > *indicies)
@@ -404,6 +411,24 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	}
 	m_model.push_back(load);
 
+	load.pos[0] = 1;
+	load.pos[1] = 1;
+	load.pos[2] = 2;
+	load.rotate[0] = 0;
+	load.rotate[1] = 0;
+
+	load.rotate[2] = 0;
+	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisY(timer.Delta() * 5));
+
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			load.SV_WorldMatrix[i][z] = world.vertex[i][z];
+		}
+	}
+	m_model.push_back(load);
+
 	return true;
 }
 
@@ -414,7 +439,7 @@ bool DxEngine::InitializeShaderResources()
 	//help.s = &m_shaderResource;
 	//std::thread m_thread(LoadTextures, &help);
 	//m_thread.join();
-	CreateDDSTextureFromFile(device, L"lava_seamless.dds", NULL, &m_shaderResource);
+	CreateDDSTextureFromFile(device, L"KingdomHearts.dds", NULL, &m_shaderResource);
 	CreateDDSTextureFromFile(device, L"Nebula_Sky.dds", NULL, &m_secondshaderResource);
 	CreateDDSTextureFromFile(device, L"defender.dds", NULL, &m_shipResource);
 
@@ -423,21 +448,21 @@ bool DxEngine::InitializeShaderResources()
 
 bool DxEngine::InitializeMatrixes()
 {
-	//m_camera.pos[0] = 0;
-	//m_camera.pos[1] = 0;
-	//m_camera.pos[2] = 1;
+	m_camera.pos[0] = 0;
+	m_camera.pos[1] = 0;
+	m_camera.pos[2] = 1;
 
-	//m_camera.rotate[0] = 0;
-	//m_camera.rotate[1] = 0;
-	//m_camera.rotate[2] = 1;
+	m_camera.rotate[0] = 0;
+	m_camera.rotate[1] = 0;
+	m_camera.rotate[2] = 1;
 
-	//for (size_t i = 0; i < 4; i++)
-	//{
-	//	for (size_t z = 0; z < 4; z++)
-	//	{
-	//		m_camera.SV_WorldMatrix[i][z] = BuildIdentityMatrix().vertex[i][z];
-	//	}
-	//}
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			m_camera.SV_WorldMatrix[i][z] = BuildIdentityMatrix().vertex[i][z];
+		}
+	}
 	Matrix project = BuildProjectionMatrix(BACKBUFFER_WIDTH, BACKBUFFER_HEIGHT);
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -466,6 +491,7 @@ bool DxEngine::InitializeVertexShaders()
 {
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &VS_Shader);
 	device->CreateVertexShader(VertexShader, sizeof(VertexShader), NULL, &VS_InstanceShader);
+	device->CreateVertexShader(SkyboxVertex, sizeof(SkyboxVertex), NULL, &VS_SkyboxShader);
 
 	return true;
 }
@@ -474,6 +500,7 @@ bool DxEngine::InitializePixelShaders()
 {
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &PS_Shader);
 	device->CreatePixelShader(PixelShader, sizeof(PixelShader), NULL, &PS_PixelShader);
+	device->CreatePixelShader(SkyboxPixel, sizeof(SkyboxPixel), NULL, &PS_SkyboxShader);
 
 	return true;
 }
@@ -512,24 +539,24 @@ bool DxEngine::InitializeConstantBuffers()
 
 	hr = device->CreateBuffer(&constbuffDesc, nullptr, &constantBuffer);
 
-	//Matrix identity[2];
-	//identity[0] = Translate(1.0, 0, 2);
-	//identity[1] = Translate(1.0, 1.0, 2);
+	Matrix identity[2];
+	identity[0] = Translate(1.0, 0, 2);
+	identity[1] = Translate(1.0, 1.0, 2);
 
-	//memcpy_s(ship.instance, sizeof(Matrix) * 2, identity, sizeof(Matrix) * 2);
-	//
-	//D3D11_BUFFER_DESC instBuffer;
-	//ZeroMemory(&instBuffer, sizeof(instBuffer));
-	//instBuffer.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	//instBuffer.ByteWidth = sizeof(Instance);
-	//instBuffer.Usage = D3D11_USAGE_DYNAMIC;
-	//instBuffer.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	memcpy_s(ship.instance, sizeof(Matrix) * 2, identity, sizeof(Matrix) * 2);
+	
+	D3D11_BUFFER_DESC instBuffer;
+	ZeroMemory(&instBuffer, sizeof(instBuffer));
+	instBuffer.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	instBuffer.ByteWidth = sizeof(Instance);
+	instBuffer.Usage = D3D11_USAGE_DYNAMIC;
+	instBuffer.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-	//D3D11_SUBRESOURCE_DATA instData;
-	//ZeroMemory(&instData, sizeof(instData));
-	//instData.pSysMem = &ship;
+	D3D11_SUBRESOURCE_DATA instData;
+	ZeroMemory(&instData, sizeof(instData));
+	instData.pSysMem = &ship;
 
-	//device->CreateBuffer(&instBuffer, &instData, &m_InstanceBuffer);
+	device->CreateBuffer(&instBuffer, &instData, &m_InstanceBuffer);
 	if (FAILED(hr))
 	{
 		return false;
@@ -803,29 +830,13 @@ void DxEngine::Draw()
 {
 	timer.Signal();
 
-	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), WorldSpaceCamera);
+	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(m_camera.rotate[1]));
 
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
 			m_camera.SV_WorldMatrix[i][z] = cam.vertex[i][z];
-		}
-	}
-	Matrix temp;
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t z = 0; z < 4; z++)
-		{
-			temp.vertex[i][z] = m_camera.SV_WorldMatrix[i][z];
-		}
-	}
-	Matrix inv = Inverse(temp);
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t z = 0; z < 4; z++)
-		{
-			m_camera.SV_WorldMatrix[i][z] = temp.vertex[i][z];
 		}
 	}
 
@@ -871,14 +882,8 @@ void DxEngine::Draw()
 	blendFactor[3] = 0.0f;
 
 
-	if (timer.TotalTime() > 10)
-	{
-		context->PSSetShaderResources(0, 1, &m_secondshaderResource);
-	}
-	else
-	{
-		context->PSSetShaderResources(0, 1, &m_shaderResource);
-	}
+
+	context->PSSetShaderResources(0, 1, &m_shaderResource);
 
 	context->PSSetSamplers(0, 1, &m_sampler);
 
@@ -918,8 +923,8 @@ void DxEngine::Draw()
 	UINT offset = 0;
 	context->IASetVertexBuffers(0, 1, &VertBuffer, &stride, &offset);
 	context->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	context->VSSetShader(VS_Shader, 0, 0);
-	context->PSSetShader(PS_Shader, 0, 0);
+	context->VSSetShader(VS_SkyboxShader, 0, 0);
+	context->PSSetShader(PS_SkyboxShader, 0, 0);
 	context->IASetInputLayout(layout);
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -930,36 +935,39 @@ void DxEngine::Draw()
 	m_thread.join();*/
 
 	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	//for (size_t i = 0; i < 4; i++)
-	//{
-	//	for (size_t z = 0; z < 4; z++)
-	//	{
-	//		toShaderWorld.SV_WorldMatrix[i][z] = m_model[1].SV_WorldMatrix[i][z];
-	//	}
-	//}
-	//D3D11_MAPPED_SUBRESOURCE objData2;
-	//ZeroMemory(&objData2, sizeof(objData2));
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[1].SV_WorldMatrix[i][z];
+		}
+	}
+	D3D11_MAPPED_SUBRESOURCE objData2;
+	ZeroMemory(&objData2, sizeof(objData2));
 
-	//context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
-	//memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
-	//context->Unmap(constantBuffer, NULL);
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
+	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
 
-	//context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
-	//context->PSSetShaderResources(0, 1, &m_shipResource);
+	
+	context->PSSetShaderResources(0, 1, &m_shipResource);
 	//context->VSSetShader(VS_InstanceShader, NULL, 0);
-	//context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP);
-	//context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
-	//context->IASetInputLayout(m_layout);
+	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
+	context->VSSetShader(VS_Shader, 0, 0);
+	context->PSSetShader(PS_Shader, 0, 0);
 	//context->VSSetShader(VS_InstanceShader, 0, 0);
 	//context->PSSetShader(PS_PixelShader, 0, 0);
-	//context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
-	//context->Draw(30, 0);
+	context->Draw(numverts, 0);
 
-	//context->RSSetViewports(1, &m_viewPort);
+	context->RSSetViewports(1, &m_viewPort);
 
-	//context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	////context->DrawInstanced(numverts, 2, 0, 0);
+	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
+	context->VSSetShader(VS_InstanceShader, 0, 0);
+
+	context->DrawInstanced(numverts, 2, 0, 0);
 
 
 	context->RSSetState(m_RasterState);
