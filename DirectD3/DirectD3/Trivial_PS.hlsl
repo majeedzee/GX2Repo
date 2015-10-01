@@ -41,7 +41,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 
 		//float diffuse = clamp(dot(normal, lightDir), 0.0, 1.0);
 		//float specular = 0;
-		return base;
+		//return base;
 		//if (diffuse > 0.0)
 		//{
 		//	specular = pow(saturate(dot(normal, lightDir)), 25);
@@ -53,7 +53,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 		float4 m_dir = saturate((dot(lightDir, normal) * base) + (base + ambColor));
 		//return saturate(m_point + m_dir);
 
-		//return (spotFactor * spotLightRatio * spotColor * base) + (spotAmbColor * base);
-		//return pointratio * p_ambColor * base;
+		return (spotFactor * spotLightRatio * spotColor * base) + (spotAmbColor * base);
+		//return saturate((pointratio * p_ambColor * base) + (base + p_ambColor));
 	//return float4(final, 1.0);
 }

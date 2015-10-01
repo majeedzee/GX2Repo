@@ -1,7 +1,12 @@
 #pragma once
 #include "Defines.h"
 
-
+struct Threading
+{
+	ID3D11Device** d;
+	ID3D11ShaderResourceView** s;
+	ID3D11DeviceContext** context;
+};
 
 struct Vertex
 {
@@ -42,10 +47,11 @@ Matrix BuildRotationMatrixOnAxisY(float m_angle);
 Matrix Translate(float x, float y, float z);
 Matrix BuildRotationMatrixOnAxisX(double  m_angle);
 float ConvertDegreestoRadians(float m_angle);
-Matrix Scale(Matrix scale, float value);
+Matrix Scale(Matrix scale, float x, float y, float z);
 Matrix BuildProjectionMatrix(float width, float height);
 Matrix Inverse(Matrix inv);
 unsigned int InterpolateTwoColors(unsigned int color1, unsigned int color2, float ratio);
 
+void LoadTextures(Threading *draw);
 //Vertex UV_Coords;
 

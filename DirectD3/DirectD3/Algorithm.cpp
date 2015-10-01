@@ -262,12 +262,17 @@ float ConvertDegreestoRadians(float m_angle)
 	return m_angle * PI / 180.0f;
 }
 
-Matrix Scale(Matrix scale, float value)
+void LoadTextures(Threading *draw)
+{
+	CreateDDSTextureFromFile(*draw->d, L"defender.dds", NULL, *&draw->s);
+}
+
+Matrix Scale(Matrix scale, float x, float y, float z)
 {
 	Matrix temp = {};
-	scale.vertex[0][0] *= value;
-	scale.vertex[1][1] *= value;
-	scale.vertex[2][2] *= value;
+	scale.vertex[0][0] *= x;
+	scale.vertex[1][1] *= y;
+	scale.vertex[2][2] *= z;
 
 	temp = scale;
 	return temp;

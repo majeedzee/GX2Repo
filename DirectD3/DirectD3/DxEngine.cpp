@@ -39,10 +39,15 @@ DxEngine::DxEngine()
 	m_RasterState = nullptr;
 	VS_SkyboxShader = nullptr;
 	PS_SkyboxShader = nullptr;
+	plane_VertBuffer = nullptr;
+	plane_IndexBuffer = nullptr;
 
 	fullscreen = false;
-	once = false;
+	once = true;
 	FULL_SCREEN = false;
+
+	valueX = 0;
+	valueY = 0;
 }
 
 DxEngine::~DxEngine()
@@ -78,6 +83,8 @@ void DxEngine::ShutDown()
 	ReleaseCOM(PS_PixelShader);
 	ReleaseCOM(VS_SkyboxShader);
 	ReleaseCOM(PS_SkyboxShader);
+	ReleaseCOM(plane_IndexBuffer);
+	ReleaseCOM(plane_VertBuffer);
 
 }
 
@@ -170,10 +177,10 @@ bool DxEngine::LoadObject(char* path, vector<VertexBuffer> *out_vertices, vector
 		out.COORD[2] = vertex.z;
 
 		out_vertices->push_back(out);
-		//indicies->push_back(i);
+		indicies->push_back(vertexIndex);
 	}
 
-	*indicies = vertexIndices;
+	//*indicies = vertexIndices;
 	return true;
 }
 
@@ -240,6 +247,8 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	vector<unsigned int> m_modelIndex;
 	VertexBuffer m_cube;
 	vector<VertexBuffer> m_cubeVector;
+	vector<VertexBuffer> m_planeVector;
+	vector<unsigned int> m_planeIndex;
 
 	LoadObject("talon.obj", &m_modelVector, &m_modelIndex);
 
@@ -262,7 +271,29 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	ZeroMemory(&m_indexData, sizeof(m_indexData));
 	m_indexData.pSysMem = &m_modelIndex[0];
 	device->CreateBuffer(&m_indexBuffer, &m_indexData, &m_IndexBuffer);
-	numverts = m_modelVector.size();
+	numverts = m_modelIndex.size();
+
+	LoadObject("MyCube.obj", &m_planeVector, &m_planeIndex);
+
+	D3D11_BUFFER_DESC vertBuffer;
+	ZeroMemory(&vertBuffer, sizeof(vertBuffer));
+	vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertBuffer.ByteWidth = sizeof(VertexBuffer) * m_planeVector.size();
+	vertBuffer.Usage = D3D11_USAGE_IMMUTABLE;
+	D3D11_SUBRESOURCE_DATA vertData;
+	ZeroMemory(&vertData, sizeof(vertData));
+	vertData.pSysMem = &m_planeVector[0];
+	device->CreateBuffer(&vertBuffer, &vertData, &plane_VertBuffer);
+
+	D3D11_BUFFER_DESC indexBuffer;
+	ZeroMemory(&indexBuffer, sizeof(indexBuffer));
+	indexBuffer.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	indexBuffer.ByteWidth = sizeof(unsigned int) * m_planeIndex.size();
+	indexBuffer.Usage = D3D11_USAGE_IMMUTABLE;
+	D3D11_SUBRESOURCE_DATA indexData;
+	ZeroMemory(&indexData, sizeof(indexData));
+	indexData.pSysMem = &m_planeIndex[0];
+	device->CreateBuffer(&indexBuffer, &indexData, &plane_IndexBuffer);
 
 	/// BLAH
 	m_cube.COORD[0] = -0.25;
@@ -371,22 +402,18 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	m_cubeverts[35] = 2;
 
 
-	D3D11_BUFFER_DESC vertBuffer;
 	ZeroMemory(&vertBuffer, sizeof(vertBuffer));
 	vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	vertBuffer.ByteWidth = sizeof(VertexBuffer) * 8;
 	vertBuffer.Usage = D3D11_USAGE_IMMUTABLE;
-	D3D11_SUBRESOURCE_DATA vertData;
 	ZeroMemory(&vertData, sizeof(vertData));
 	vertData.pSysMem = &m_cubeVector[0];
 	device->CreateBuffer(&vertBuffer, &vertData, &VertBuffer);
 
-	D3D11_BUFFER_DESC indexBuffer;
 	ZeroMemory(&indexBuffer, sizeof(indexBuffer));
 	indexBuffer.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	indexBuffer.ByteWidth = sizeof(UINT) * 36;
 	indexBuffer.Usage = D3D11_USAGE_IMMUTABLE;
-	D3D11_SUBRESOURCE_DATA indexData;
 	ZeroMemory(&indexData, sizeof(indexData));
 	indexData.pSysMem = m_cubeverts;
 	device->CreateBuffer(&indexBuffer, &indexData, &IndexBuffer);
@@ -400,7 +427,7 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	load.rotate[2] = 0;
 
 	Matrix world = MatrixMatrixMultipy(BuildRotationMatrixOnAxisY(0), Translate(load.pos[0], load.pos[1], load.pos[2]));
-	world = Scale(world, 64);
+	world = Scale(world, 64,64,64);
 
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -416,9 +443,29 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	load.pos[2] = 2;
 	load.rotate[0] = 0;
 	load.rotate[1] = 0;
-
 	load.rotate[2] = 0;
-	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisY(timer.Delta() * 5));
+
+	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisX(0));
+
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			load.SV_WorldMatrix[i][z] = world.vertex[i][z];
+		}
+	}
+	m_model.push_back(load);
+
+	
+	load.pos[0] = 9;
+	load.pos[1] = -1;
+	load.pos[2] = 5;
+	load.rotate[0] = 0;
+	load.rotate[1] = 180;
+	load.rotate[2] = 0;
+
+	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisX(0));
+	world = Scale(world, 4, 0.1f, 4);
 
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -434,14 +481,14 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 
 bool DxEngine::InitializeShaderResources()
 {
-	//Threading help;
-	//help.d = &device;
-	//help.s = &m_shaderResource;
-	//std::thread m_thread(LoadTextures, &help);
-	//m_thread.join();
+	Threading draw;
+	draw.d = &device;
+	draw.s = &m_shipResource;
+	std::thread m_thread(LoadTextures, &draw);
+	m_thread.detach();
 	CreateDDSTextureFromFile(device, L"KingdomHearts.dds", NULL, &m_shaderResource);
-	CreateDDSTextureFromFile(device, L"Nebula_Sky.dds", NULL, &m_secondshaderResource);
-	CreateDDSTextureFromFile(device, L"defender.dds", NULL, &m_shipResource);
+	CreateDDSTextureFromFile(device, L"lava_seamless.dds", NULL, &m_secondshaderResource);
+	//CreateDDSTextureFromFile(device, L"Keyblade.dds", NULL, &m_shipResource);
 
 	return true;
 }
@@ -826,25 +873,69 @@ bool DxEngine::Initialize()
 	return true;
 }
 
+
 void DxEngine::Draw()
 {
 	timer.Signal();
+	
+//	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), Translate(m_camera.rotate[0], m_camera.rotate[1], m_camera.rotate[2]));
+	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(0));
 
-	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(m_camera.rotate[1]));
+	Matrix temp;
+	float temppos[3];
+	temppos[0] = m_camera.SV_WorldMatrix[3][0];
+	m_camera.SV_WorldMatrix[3][0] = 0;
+	temppos[1] = m_camera.SV_WorldMatrix[3][1];
+	m_camera.SV_WorldMatrix[3][1] = 0;
+	temppos[2] = m_camera.SV_WorldMatrix[3][2];
+	m_camera.SV_WorldMatrix[3][2] = 0;
 
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
-			m_camera.SV_WorldMatrix[i][z] = cam.vertex[i][z];
+			temp.vertex[i][z] = m_camera.SV_WorldMatrix[i][z];
 		}
 	}
 
+	Matrix x = BuildRotationMatrixOnAxisX(m_camera.rotate[0]);
+	Matrix y = BuildRotationMatrixOnAxisY(m_camera.rotate[1]);
+	Matrix r = MatrixMatrixMultipy(x, temp);
+	r = MatrixMatrixMultipy(r, y);
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
-			toShaderWorld.SV_ViewMatrix[i][z] = m_camera.SV_WorldMatrix[i][z];
+			m_camera.SV_WorldMatrix[i][z] = r.vertex[i][z];
+		}
+	}
+	m_camera.SV_WorldMatrix[3][0] = temppos[0];
+	m_camera.SV_WorldMatrix[3][1] = temppos[1];
+	m_camera.SV_WorldMatrix[3][2] = temppos[2];
+
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			m_camera.SV_WorldMatrix[i][z] = MatrixMatrixMultipy(cam, r).vertex[i][z];
+		}
+	}
+
+	Matrix inv;
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			inv.vertex[i][z] = m_camera.SV_WorldMatrix[i][z];
+		}
+	}
+	//inv = Inverse(inv);
+
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_ViewMatrix[i][z] = inv.vertex[i][z];
 		}
 	}
 
@@ -856,6 +947,8 @@ void DxEngine::Draw()
 	//		toShaderWorld.SV_WorldMatrix[i][z] = rotate.vertex[i][z];
 	//	}
 	//}
+
+	
 
 	D3D11_MAPPED_SUBRESOURCE camData;
 	ZeroMemory(&camData, sizeof(camData));
@@ -893,6 +986,10 @@ void DxEngine::Draw()
 	m_model[0].pos[0] = -m_camera.pos[0];
 	m_model[0].pos[1] = -m_camera.pos[1];
 	m_model[0].pos[2] = -m_camera.pos[2];
+	m_model[0].rotate[0] = -m_camera.rotate[0];
+	m_model[0].rotate[1] = -m_camera.rotate[1];
+	m_model[0].rotate[2] = -m_camera.rotate[2];
+
 	Matrix mult = MatrixMatrixMultipy(Translate(m_model[0].pos[0], m_model[0].pos[1], m_model[0].pos[2]), BuildRotationMatrixOnAxisY(m_model[0].rotate[1]));
 
 	for (size_t i = 0; i < 4; i++)
@@ -933,8 +1030,23 @@ void DxEngine::Draw()
 	drawthread.context = &context;
 	std::thread m_thread(ThreadDraw, &drawthread);
 	m_thread.join();*/
-
 	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	/*m_model[1].rotate[0] = -m_camera.rotate[0];
+	m_model[1].rotate[1] = -m_camera.rotate[1];
+	m_model[1].rotate[2] = -m_camera.rotate[2];
+
+	mult = MatrixMatrixMultipy(Translate(m_model[1].pos[0], m_model[1].pos[1], m_model[1].pos[2]), BuildRotationMatrixOnAxisY(m_model[1].rotate[1]));
+
+	mult = MatrixMatrixMultipy(mult, BuildRotationMatrixOnAxisX(m_model[1].rotate[0]));
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			m_model[1].SV_WorldMatrix[i][z] = mult.vertex[i][z];
+		}
+	}*/
+	
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -961,8 +1073,34 @@ void DxEngine::Draw()
 
 	context->Draw(numverts, 0);
 
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[2].SV_WorldMatrix[i][z];
+		}
+	}
+	D3D11_MAPPED_SUBRESOURCE objData3;
+	ZeroMemory(&objData3, sizeof(objData3));
+
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+	memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
+
+	context->VSSetShader(VS_SkyboxShader, 0, 0);
+	context->PSSetShader(PS_Shader, 0, 0);
+	context->PSSetShaderResources(0, 1, &m_secondshaderResource);
+	context->IASetVertexBuffers(0, 1, &plane_VertBuffer, &stride, &offset);
+	context->IASetIndexBuffer(plane_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	context->Draw(36, 0);
+
+
 	context->RSSetViewports(1, &m_viewPort);
 
+	context->PSSetShaderResources(0, 1, &m_shipResource);
+	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
+	context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
 	context->VSSetShader(VS_InstanceShader, 0, 0);
@@ -972,6 +1110,10 @@ void DxEngine::Draw()
 
 	context->RSSetState(m_RasterState);
 
+	m_camera.rotate[0] = 0;
+	m_camera.rotate[1] = 0;
+	m_camera.rotate[2] = 0;
+
 	s_chain->Present(0, 0);
 }
 
@@ -980,46 +1122,9 @@ void DxEngine::TranslateCamera(UINT sub, float distance)
 	m_camera.pos[sub] += distance;
 }
 
-void DxEngine::RotateCameraX(float value)
+void DxEngine::RotateCamera(UINT sub, float distance)
 {
-	Matrix rotate;
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t z = 0; z < 4; z++)
-		{
-			rotate.vertex[i][z] = m_camera.SV_WorldMatrix[i][z];
-		}
-	}
-	rotate = MatrixMatrixMultipy(rotate, BuildRotationMatrixOnAxisX(value));
-
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t z = 0; z < 4; z++)
-		{
-			m_camera.SV_WorldMatrix[i][z] = rotate.vertex[i][z];
-		}
-	}
-}
-
-void DxEngine::RotateCameraY(float value)
-{
-	Matrix rotate;
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t z = 0; z < 4; z++)
-		{
-			rotate.vertex[i][z] = m_camera.SV_WorldMatrix[i][z];
-		}
-	}
-	rotate = MatrixMatrixMultipy(rotate, BuildRotationMatrixOnAxisY(value));
-
-	for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t z = 0; z < 4; z++)
-		{
-			m_camera.SV_WorldMatrix[i][z] = rotate.vertex[i][z];
-		}
-	}
+	m_camera.rotate[sub] += distance;
 }
 
 template<typename DX>

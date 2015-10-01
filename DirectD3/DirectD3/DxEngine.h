@@ -29,10 +29,11 @@ public:
 	void Draw();
 
 	void TranslateCamera(UINT sub, float distance);
-	void RotateCameraX(float value);
-	void RotateCameraY(float value);
+	void RotateCamera(UINT sub, float distance);
 	void ShutDown();
-	
+	void SetValueX(float num) { valueX = num; }
+	void SetValueY(float num) { valueY = num; }
+
 private:
 	template<typename DX>
 	void ReleaseCOM(DX& item);
@@ -75,6 +76,8 @@ private:
 	Matrix WorldSpaceCamera;
 	Model m_camera;
 	UINT numverts;
+	float valueX;
+	float valueY;
 
 	ID3D11Device*			device;
 
@@ -99,6 +102,9 @@ private:
 	ID3D11Buffer*			m_VertBuffer;
 	ID3D11Buffer*			m_IndexBuffer;
 	ID3D11Buffer*			m_InstanceBuffer;
+
+	ID3D11Buffer*			plane_VertBuffer;
+	ID3D11Buffer*			plane_IndexBuffer;
 
 	ID3D11VertexShader*		VS_Shader;
 	ID3D11VertexShader*		VS_InstanceShader;

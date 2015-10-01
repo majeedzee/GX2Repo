@@ -45,10 +45,9 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer)
 
 	sendToRasterizer.posH = Vector;
 	sendToRasterizer.UV = fromVertexBuffer.UV;
-	//sendToRasterizer.UV = float3(0.25,0.25,0);
 	sendToRasterizer.UV.y = 1 - fromVertexBuffer.UV.y;
 
-	sendToRasterizer.norm = fromVertexBuffer.norm;
+	sendToRasterizer.norm = mul(fromVertexBuffer.norm, (float3x3)SV_WorldMatrix);
 	//sendToRasterizer.norm.y = 1 - fromVertexBuffer.norm.y;
 	
 	return sendToRasterizer;

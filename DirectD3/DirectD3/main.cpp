@@ -70,25 +70,25 @@ bool DEMO_APP::Run()
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0, 0.05));
 		//m_camera.pos[2] += 0.05;
-		m_Engine->TranslateCamera(2, 0.05);
+		m_Engine->TranslateCamera(2, -0.05);
 	}
 	if (GetAsyncKeyState(VK_DOWN) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0, -0.05));
 		//m_camera.pos[2] -= 0.05;
-		m_Engine->TranslateCamera(2, -0.05);
+		m_Engine->TranslateCamera(2, 0.05);
 	}
 	if (GetAsyncKeyState(VK_RIGHT) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0.05, 0, 0));
 		//m_camera.pos[0] += 0.05;
-		m_Engine->TranslateCamera(0, 0.05);
+		m_Engine->TranslateCamera(0, -0.05);
 	}
 	if (GetAsyncKeyState(VK_LEFT) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(-0.05, 0, 0));
 		//m_camera.pos[0] -= 0.05;
-		m_Engine->TranslateCamera(0, -0.05);
+		m_Engine->TranslateCamera(0, 0.05);
 	}
 	if (GetAsyncKeyState(VK_SPACE) & 0x1)
 	{
@@ -106,22 +106,26 @@ bool DEMO_APP::Run()
 	if (GetAsyncKeyState(VK_NUMPAD4) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, BuildRotationMatrixOnAxisX(0.05));
-		m_Engine->RotateCameraX(0.05);
+		m_Engine->RotateCamera(1, -0.05);
 	}
 	if (GetAsyncKeyState(VK_NUMPAD6) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, BuildRotationMatrixOnAxisX(-0.05));
-		m_Engine->RotateCameraX(-0.05);
+		//m_Engine->RotateCameraX(-0.05);
+		m_Engine->RotateCamera(1, 0.05);
 	}
 	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(-0.05));
-		m_Engine->RotateCameraY(0.05);
+		//m_Engine->RotateCameraY(0.05);
+		//m_Engine->SetValueY(0.005);
+		m_Engine->RotateCamera(0, -0.05);
 	}
 	if (GetAsyncKeyState(VK_NUMPAD2) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(0.05));
-		m_Engine->RotateCameraY(-0.05);
+		//m_Engine->RotateCameraY(-0.05);
+		m_Engine->RotateCamera(0, 0.05);
 	}
 
 	m_Engine->Draw();

@@ -68,5 +68,7 @@
     <Image Include="mario.dds" />
     <Image Include="defender.dds" />
     <Image Include="KingdomHearts.dds" />
+    <Image Include="gummi.dds" />
+    <Image Include="Keyblade.dds" />
   </ItemGroup>
 </Project>
