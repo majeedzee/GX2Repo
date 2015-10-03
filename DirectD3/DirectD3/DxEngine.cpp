@@ -486,7 +486,7 @@ bool DxEngine::InitializeShaderResources()
 	draw.s = &m_shipResource;
 	std::thread m_thread(LoadTextures, &draw);
 	m_thread.detach();
-	CreateDDSTextureFromFile(device, L"KingdomHearts.dds", NULL, &m_shaderResource);
+	CreateDDSTextureFromFile(device, L"OutputCube.dds", NULL, &m_shaderResource);
 	CreateDDSTextureFromFile(device, L"lava_seamless.dds", NULL, &m_secondshaderResource);
 	//CreateDDSTextureFromFile(device, L"Keyblade.dds", NULL, &m_shipResource);
 

@@ -224,6 +224,7 @@
     <Image Include="lava_seamless.dds" />
     <Image Include="mario.dds" />
     <Image Include="Nebula_Sky.dds" />
+    <Image Include="OutputCube.dds" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

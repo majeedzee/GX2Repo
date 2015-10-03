@@ -70,5 +70,6 @@
     <Image Include="KingdomHearts.dds" />
     <Image Include="gummi.dds" />
     <Image Include="Keyblade.dds" />
+    <Image Include="OutputCube.dds" />
   </ItemGroup>
 </Project>
