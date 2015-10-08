@@ -27,7 +27,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 	float spotFactor = (spotRatio > 0.95f) ? 1 : 0;
 	float spotLightRatio = clamp(dot(spotdir2, normal), 0, 1);
 	float4 spotAmbColor = { 0.5f, 0.5f, 0.5f, 1 };
-		float4 spotColor = float4(1.0f, 0.0f, 0.0f, 1);
+		float4 spotColor = float4(0.0f, 1.0f, 0.0f, 1);
 
 		float3 pointpos = (2, 0, 0);
 		float3 pointdir = normalize(pointpos - modulate.worldpos);
