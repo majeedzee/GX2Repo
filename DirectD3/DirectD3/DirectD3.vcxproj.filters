@@ -71,5 +71,8 @@
     <Image Include="gummi.dds" />
     <Image Include="Keyblade.dds" />
     <Image Include="OutputCube.dds" />
+    <Image Include="talon.dds" />
+    <Image Include="AlienTree.dds" />
+    <Image Include="DeadGrass.dds" />
   </ItemGroup>
 </Project>

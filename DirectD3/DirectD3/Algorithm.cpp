@@ -264,7 +264,38 @@ float ConvertDegreestoRadians(float m_angle)
 
 void LoadTextures(Threading *draw)
 {
-	CreateDDSTextureFromFile(*draw->d, L"defender.dds", NULL, *&draw->s);
+	//CreateDDSTextureFromFile(*draw->d, L"defender.dds", NULL, *&draw->s);
+	CreateDDSTextureFromFile(*draw->d, L"AlienTree.dds", NULL, *&draw->s);
+}
+
+void DrawOnThread(Threading *draw)
+{
+	UINT offset = 0;
+	(*draw->cont)->OMSetRenderTargets(1, draw->RTV, *draw->DSV);
+	(*draw->cont)->RSSetViewports(1, draw->view);
+
+	float m_color[4] = { 0.0f, 0.0f, 1.0f, 1 };
+	(*draw->cont)->ClearRenderTargetView(*draw->RTV, m_color);
+	(*draw->cont)->ClearDepthStencilView(*draw->DSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	(*draw->cont)->PSSetSamplers(0, 1, draw->sampler);
+
+	D3D11_MAPPED_SUBRESOURCE objData3;
+	ZeroMemory(&objData3, sizeof(objData3));
+
+	(*draw->cont)->Map(*draw->constant, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+	memcpy(objData3.pData, &draw->toShader, sizeof(draw->toShader));
+	(*draw->cont)->Unmap(*draw->constant, NULL);
+
+	(*draw->cont)->IASetVertexBuffers(0, 1, draw->vert, &draw->stride, &offset);
+	(*draw->cont)->VSSetShader(*draw->VS, 0, 0);
+	(*draw->cont)->PSSetShader(*draw->PS, 0, 0);
+	(*draw->cont)->IASetInputLayout(*draw->lay);
+	(*draw->cont)->PSSetShaderResources(0, 1, draw->srv);
+	(*draw->cont)->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	(*draw->cont)->Draw(36, 0);
+	(*draw->cont)->FinishCommandList(true, draw->cmd);
 }
 
 Matrix Scale(Matrix scale, float x, float y, float z)

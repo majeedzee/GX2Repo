@@ -13,26 +13,26 @@ SamplerState filter : register(s0);
 
 float4 main(V_OUT modulate) : SV_TARGET
 {
-	float3 genDir = (1, 1, 1);
-	float3 lightDir = -normalize(genDir);
+	float3 genDir = (0, 1, 1);
+	float3 lightDir = normalize(genDir);
 	float3 normal = normalize(modulate.norm);
-	float3 spotDir = (1, 1, 1);
+	float3 spotDir = (0, 1, -1);
 
 	float3 spotCone = normalize(spotDir);
-	float3 spotPos = { 0, -1, 1};
+	float3 spotPos = { 2, 2, 8};
 
 	float3 spotdir2 = normalize(spotPos - modulate.worldpos);
 	float spotRatio = clamp(dot(-spotdir2, spotCone), 0, 1);
 
-	float spotFactor = (spotRatio > 0.85f) ? 1 : 0;
+	float spotFactor = (spotRatio > 0.95f) ? 1 : 0;
 	float spotLightRatio = clamp(dot(spotdir2, normal), 0, 1);
 	float4 spotAmbColor = { 0.5f, 0.5f, 0.5f, 1 };
-		float4 spotColor = float4(1.0f, 1.0f, 1.0f, 1);
+		float4 spotColor = float4(1.0f, 0.0f, 0.0f, 1);
 
-	float3 pointpos = (2, 0, 0);
-	float3 pointdir = normalize(pointpos - modulate.worldpos);
-	float pointratio = clamp(dot(pointdir, modulate.norm), 0.0, 1.0);
-	float4 p_ambColor = { 1, 1, 1, 1 };
+		float3 pointpos = (2, 0, 0);
+		float3 pointdir = normalize(pointpos - modulate.worldpos);
+		float pointratio = 50;//clamp(dot(pointdir, modulate.norm), 0.0, 1.0);
+	float4 p_ambColor = { 1, 0, 1, 1 };
 
 		float4 base = Texture.Sample(filter, modulate.UV.xy);
 
@@ -50,7 +50,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 		//float3 final = ambColor + lightColor * diffuse + lightColor * specular;
 		//return saturate((dot(lightDir, normal) * base) + (base + ambColor));
 		float4 m_point = (pointratio * p_ambColor * base) + (base + p_ambColor);
-		float4 m_dir = saturate((dot(lightDir, normal) * base) + (base + ambColor));
+		float4 m_dir = saturate((dot(lightDir, normal) * base)/* + (base + ambColor)*/);
 		//return saturate(m_point + m_dir);
 
 		float4 spot = (spotFactor * spotLightRatio * spotColor * base) + (spotAmbColor * base);

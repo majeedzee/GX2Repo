@@ -127,6 +127,15 @@ bool DEMO_APP::Run()
 		//m_Engine->RotateCameraY(-0.05);
 		m_Engine->RotateCamera(0, 0.05);
 	}
+	if (GetAsyncKeyState(VK_NUMPAD1) & 0x1)
+	{
+		m_Engine->SetChange();
+	}
+	if (GetAsyncKeyState(VK_TAB) & 0x1)
+	{
+		m_Engine->ChangeFull();
+		m_Engine->ChangeOnce();
+	}
 
 	m_Engine->Draw();
 	
@@ -190,7 +199,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}break;
 	case WM_SIZE:
 	{
-		//once = true;
+		
 	}break;
 	case (WM_DESTROY) : { PostQuitMessage(0); }
 						break;

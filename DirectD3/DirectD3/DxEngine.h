@@ -33,6 +33,9 @@ public:
 	void ShutDown();
 	void SetValueX(float num) { valueX = num; }
 	void SetValueY(float num) { valueY = num; }
+	void SetChange() { change = !change; }
+	void ChangeOnce() { once = !once; }
+	void ChangeFull() { fullscreen = !fullscreen; }
 
 private:
 	template<typename DX>
@@ -47,12 +50,7 @@ private:
 
 	Instance ship;
 
-	struct Obj
-	{
-		float SV_WorldMatrix[4][4];
-		float SV_ProjectionMatrix[4][4];
-		float SV_ViewMatrix[4][4];
-	};
+	
 
 	struct Model
 	{
@@ -82,6 +80,9 @@ private:
 	ID3D11Device*			device;
 
 	ID3D11DeviceContext*	context;
+	ID3D11DeviceContext*	defferedContext;
+	
+	ID3D11CommandList*		command;
 
 	ID3D11RenderTargetView* renderTargetView;
 
@@ -123,6 +124,7 @@ private:
 	ID3D11ShaderResourceView*	m_shaderResource;
 	ID3D11ShaderResourceView*	m_secondshaderResource;
 	ID3D11ShaderResourceView*	m_shipResource;
+	ID3D11ShaderResourceView*	m_secondshipResource;
 
 	ID3D11BlendState*			m_alphaEnabledBlendState;
 
@@ -132,6 +134,7 @@ private:
 	bool fullscreen;
 	bool once;
 	bool FULL_SCREEN;
+	bool change;
 	XTime timer;
 
 public:

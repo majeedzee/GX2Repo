@@ -1,11 +1,31 @@
 #pragma once
 #include "Defines.h"
 
+struct Obj
+{
+	float SV_WorldMatrix[4][4];
+	float SV_ProjectionMatrix[4][4];
+	float SV_ViewMatrix[4][4];
+};
+
 struct Threading
 {
 	ID3D11Device** d;
 	ID3D11ShaderResourceView** s;
-	ID3D11DeviceContext** context;
+	ID3D11DeviceContext** cont;
+	ID3D11VertexShader** VS;
+	ID3D11PixelShader** PS;
+	ID3D11Buffer** vert;
+	ID3D11Buffer** constant;
+	ID3D11CommandList** cmd;
+	ID3D11ShaderResourceView** srv;
+	ID3D11InputLayout** lay;
+	ID3D11DepthStencilView** DSV;
+	ID3D11RenderTargetView** RTV;
+	D3D11_VIEWPORT* view;
+	ID3D11SamplerState** sampler;
+	UINT stride; 
+	Obj* toShader;
 };
 
 struct Vertex
@@ -53,5 +73,6 @@ Matrix Inverse(Matrix inv);
 unsigned int InterpolateTwoColors(unsigned int color1, unsigned int color2, float ratio);
 
 void LoadTextures(Threading *draw);
+void DrawOnThread(Threading *draw);
 //Vertex UV_Coords;
 
