@@ -13,6 +13,13 @@ SamplerState filter : register(s0);
 
 float4 main(V_OUT modulate) : SV_TARGET
 {
+	float4 base = Texture.Sample(filter, modulate.UV.xy);
+	if (base.a < 0.1)
+	{
+		discard;
+	}
+	//	return base;
+
 	float3 genDir = (0, 1, 1);
 	float3 lightDir = normalize(genDir);
 	float3 normal = normalize(modulate.norm);
@@ -26,22 +33,26 @@ float4 main(V_OUT modulate) : SV_TARGET
 
 	float spotFactor = (spotRatio > 0.95f) ? 1 : 0;
 	float spotLightRatio = clamp(dot(spotdir2, normal), 0, 1);
-	float4 spotAmbColor = { 0.5f, 0.5f, 0.5f, 1 };
-		float4 spotColor = float4(0.0f, 1.0f, 0.0f, 1);
+	float4 spotAmbColor = { 0.3f, 0.3f, 0.3f, 1 };
+		float4 spotColor = float4(1.0f, 0.0f, 0.0f, 1);
 
-		float3 pointpos = (2, 0, 0);
-		float3 pointdir = normalize(pointpos - modulate.worldpos);
-		float pointratio = 50;//clamp(dot(pointdir, modulate.norm), 0.0, 1.0);
+		float3 pointpos = (0, 0, 0);
+		float3 pointdir = pointpos - modulate.worldpos;
+		float distance = length(pointdir);
+
+		pointdir /= distance;
+	float pointratio = dot(pointdir, modulate.norm);
+		
 	float4 p_ambColor = { 1, 0, 1, 1 };
 
-		float4 base = Texture.Sample(filter, modulate.UV.xy);
 
-		float4 ambColor = { 0.02, 0.02, 0.02, 1 };
+		float4 ambColor = { 0.0, 0.0, 0.01, 1 };
 		float4 lightColor = { 0.7, 0.7, 0.7, 1 };
 
+		float dirRatio = clamp(dot(lightDir, normal), 0, 1);
 		//float diffuse = clamp(dot(normal, lightDir), 0.0, 1.0);
 		//float specular = 0;
-	//	return base;
+	
 		//if (diffuse > 0.0)
 		//{
 		//	specular = pow(saturate(dot(normal, lightDir)), 25);
@@ -50,14 +61,15 @@ float4 main(V_OUT modulate) : SV_TARGET
 		//float3 final = ambColor + lightColor * diffuse + lightColor * specular;
 		//return saturate((dot(lightDir, normal) * base) + (base + ambColor));
 		float4 m_point = (pointratio * p_ambColor * base) + (base + p_ambColor);
-		float4 m_dir = saturate((dot(lightDir, normal) * base)/* + (base + ambColor)*/);
+		float4 m_dir = saturate((dot(lightDir, normal) * base) + (base + ambColor));
+		//float4 m_dir = (dirRatio* ambColor * base) + (base + ambColor);
 		//return saturate(m_point + m_dir);
 
 		float4 spot = (spotFactor * spotLightRatio * spotColor * base) + (spotAmbColor * base);
-		//return spot;
+		return spot;
 		//return m_point;
 		//return m_dir;
-		return saturate(m_dir + spot);
+		//return saturate(m_dir + spot);
 		//return saturate((pointratio * p_ambColor * base) + (base + p_ambColor));
 	//return float4(final, 1.0);
 }

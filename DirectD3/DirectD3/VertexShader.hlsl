@@ -33,7 +33,7 @@ cbuffer Object : register(b1)
 
 cbuffer Instance : register(b2)
 {
-	float4x4 instance[2];
+	float4x4 instance[60];
 };
 
 OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer, uint sub : SV_InstanceID)

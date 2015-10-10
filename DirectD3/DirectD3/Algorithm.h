@@ -16,6 +16,7 @@ struct Threading
 	ID3D11VertexShader** VS;
 	ID3D11PixelShader** PS;
 	ID3D11Buffer** vert;
+	ID3D11Buffer** index;
 	ID3D11Buffer** constant;
 	ID3D11CommandList** cmd;
 	ID3D11ShaderResourceView** srv;

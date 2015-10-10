@@ -274,9 +274,9 @@ void DrawOnThread(Threading *draw)
 	(*draw->cont)->OMSetRenderTargets(1, draw->RTV, *draw->DSV);
 	(*draw->cont)->RSSetViewports(1, draw->view);
 
-	float m_color[4] = { 0.0f, 0.0f, 1.0f, 1 };
-	(*draw->cont)->ClearRenderTargetView(*draw->RTV, m_color);
-	(*draw->cont)->ClearDepthStencilView(*draw->DSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	//float m_color[4] = { 1.0f, 1.0f, 1.0f, 1 };
+	//(*draw->cont)->ClearRenderTargetView(*draw->RTV, m_color);
+	//(*draw->cont)->ClearDepthStencilView(*draw->DSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 	(*draw->cont)->PSSetSamplers(0, 1, draw->sampler);
 
@@ -284,10 +284,11 @@ void DrawOnThread(Threading *draw)
 	ZeroMemory(&objData3, sizeof(objData3));
 
 	(*draw->cont)->Map(*draw->constant, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
-	memcpy(objData3.pData, &draw->toShader, sizeof(draw->toShader));
+	memcpy(objData3.pData, draw->toShader, sizeof(*draw->toShader));
 	(*draw->cont)->Unmap(*draw->constant, NULL);
 
 	(*draw->cont)->IASetVertexBuffers(0, 1, draw->vert, &draw->stride, &offset);
+	//(*draw->cont)->IASetIndexBuffer(*draw->index, DXGI_FORMAT_R32_UINT, 0);
 	(*draw->cont)->VSSetShader(*draw->VS, 0, 0);
 	(*draw->cont)->PSSetShader(*draw->PS, 0, 0);
 	(*draw->cont)->IASetInputLayout(*draw->lay);

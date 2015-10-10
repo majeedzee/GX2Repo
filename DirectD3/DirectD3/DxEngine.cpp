@@ -202,7 +202,7 @@ bool DxEngine::InitializeSwapChain(HWND window)
 	swapChain.BufferDesc.RefreshRate.Numerator = 60;
 	swapChain.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChain.OutputWindow = window;
-	swapChain.SampleDesc.Count = 4;
+	swapChain.SampleDesc.Count = 1;
 	swapChain.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
 	swapChain.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swapChain.Windowed = TRUE;
@@ -249,7 +249,7 @@ bool DxEngine::InitializeViewports()
 
 bool DxEngine::InitializeVertexandIndexBuffers()
 {
-	HRESULT hr;
+	//HRESULT hr;
 
 	UINT m_cubeverts[36];
 	vector<VertexBuffer> m_modelVector;
@@ -265,7 +265,7 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	D3D11_BUFFER_DESC m_vertBuffer;
 	ZeroMemory(&m_vertBuffer, sizeof(m_vertBuffer));
 	m_vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	m_vertBuffer.ByteWidth = sizeof(VertexBuffer) * m_modelVector.size();
+	m_vertBuffer.ByteWidth = (UINT)(sizeof(VertexBuffer) * m_modelVector.size());
 	m_vertBuffer.Usage = D3D11_USAGE_IMMUTABLE;
 	D3D11_SUBRESOURCE_DATA m_vertData;
 	ZeroMemory(&m_vertData, sizeof(m_vertData));
@@ -275,20 +275,20 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	D3D11_BUFFER_DESC m_indexBuffer;
 	ZeroMemory(&m_indexBuffer, sizeof(m_indexBuffer));
 	m_indexBuffer.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	m_indexBuffer.ByteWidth = sizeof(unsigned int) * m_modelIndex.size();
+	m_indexBuffer.ByteWidth = UINT(sizeof(unsigned int) * m_modelIndex.size());
 	m_indexBuffer.Usage = D3D11_USAGE_IMMUTABLE;
 	D3D11_SUBRESOURCE_DATA m_indexData;
 	ZeroMemory(&m_indexData, sizeof(m_indexData));
 	m_indexData.pSysMem = &m_modelIndex[0];
 	device->CreateBuffer(&m_indexBuffer, &m_indexData, &m_IndexBuffer);
-	numverts = m_modelIndex.size();
+	numverts = (UINT)m_modelIndex.size();
 
 	LoadObject("MyCube.obj", &m_planeVector, &m_planeIndex);
 
 	D3D11_BUFFER_DESC vertBuffer;
 	ZeroMemory(&vertBuffer, sizeof(vertBuffer));
 	vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vertBuffer.ByteWidth = sizeof(VertexBuffer) * m_planeVector.size();
+	vertBuffer.ByteWidth = UINT(sizeof(VertexBuffer) * m_planeVector.size());
 	vertBuffer.Usage = D3D11_USAGE_IMMUTABLE;
 	D3D11_SUBRESOURCE_DATA vertData;
 	ZeroMemory(&vertData, sizeof(vertData));
@@ -298,7 +298,7 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	D3D11_BUFFER_DESC indexBuffer;
 	ZeroMemory(&indexBuffer, sizeof(indexBuffer));
 	indexBuffer.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexBuffer.ByteWidth = sizeof(unsigned int) * m_planeIndex.size();
+	indexBuffer.ByteWidth = UINT(sizeof(unsigned int) * m_planeIndex.size());
 	indexBuffer.Usage = D3D11_USAGE_IMMUTABLE;
 	D3D11_SUBRESOURCE_DATA indexData;
 	ZeroMemory(&indexData, sizeof(indexData));
@@ -437,7 +437,7 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	load.rotate[2] = 0;
 
 	Matrix world = MatrixMatrixMultipy(BuildRotationMatrixOnAxisY(0), Translate(load.pos[0], load.pos[1], load.pos[2]));
-	world = Scale(world, 64,64,64);
+	world = Scale(world, 64, 64, 64);
 
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -470,16 +470,16 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	}
 	m_model.push_back(load);
 
-	
-	load.pos[0] = 36;
+
+	load.pos[0] = 150;
 	load.pos[1] = -1;
-	load.pos[2] = 15;
+	load.pos[2] = 60;
 	load.rotate[0] = 0;
 	load.rotate[1] = 180;
 	load.rotate[2] = 0;
 
 	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisX(0));
-	world = Scale(world, 16, 0.1f, 16);
+	world = Scale(world, 64, 0.1f, 64);
 
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -600,12 +600,30 @@ bool DxEngine::InitializeConstantBuffers()
 
 	hr = device->CreateBuffer(&constbuffDesc, nullptr, &constantBuffer);
 
-	Matrix identity[2];
-	identity[0] = Translate(1.0, 0, 2);
-	identity[1] = Translate(1.0, 1.0, 2);
+	Matrix identity[60];
+	float move = 0;
+	float x = -10.0f;
+	for (size_t i = 0; i < 60; i++)
+	{
+		if (i == 20)
+		{
+			x = 1.0f;
+			move = 0;
+		}
+		if (i == 40)
+		{
+			x = 11.0f;
+			move = 0;
+		}
+		identity[i] = Translate(x, -1, 2 + move);
+		identity[i] = Scale(identity[i], 0.5f, 0.5f, 0.5f);
+		move += 5;
+	}
+	//identity[0] = Translate(1.0, 0, 2);
+	//identity[1] = Translate(1.0, 1.0, 2);
 
-	memcpy_s(ship.instance, sizeof(Matrix) * 2, identity, sizeof(Matrix) * 2);
-	
+	memcpy_s(ship.instance, sizeof(Matrix) * 60, identity, sizeof(Matrix) * 60);
+
 	D3D11_BUFFER_DESC instBuffer;
 	ZeroMemory(&instBuffer, sizeof(instBuffer));
 	instBuffer.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -659,7 +677,7 @@ bool DxEngine::InitializeDepthStencilView()
 	descDepth.MipLevels = 1;
 	descDepth.ArraySize = 1;
 	descDepth.Format = DXGI_FORMAT_D32_FLOAT;
-	descDepth.SampleDesc.Count = 4;
+	descDepth.SampleDesc.Count = 1;
 	descDepth.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
 	descDepth.Usage = D3D11_USAGE_DEFAULT;
 	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
@@ -750,7 +768,7 @@ void DxEngine::Resize()
 			DXGI_SWAP_CHAIN_DESC swapC;
 			s_chain->GetDesc(&swapC);
 
-			Matrix project = BuildProjectionMatrix(swapC.BufferDesc.Width, swapC.BufferDesc.Height);
+			Matrix project = BuildProjectionMatrix((float)swapC.BufferDesc.Width, (float)swapC.BufferDesc.Height);
 			for (size_t i = 0; i < 4; i++)
 			{
 				for (size_t z = 0; z < 4; z++)
@@ -766,7 +784,7 @@ void DxEngine::Resize()
 			descDepth.MipLevels = 1;
 			descDepth.ArraySize = 1;
 			descDepth.Format = DXGI_FORMAT_D32_FLOAT;
-			descDepth.SampleDesc.Count = 4;
+			descDepth.SampleDesc.Count = 1;
 			descDepth.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
 			descDepth.Usage = D3D11_USAGE_DEFAULT;
 			descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
@@ -794,16 +812,16 @@ void DxEngine::Resize()
 
 			context->OMSetRenderTargets(1, &renderTargetView, NULL);
 
-			viewPort.Width = swapC.BufferDesc.Width;
-			viewPort.Height = swapC.BufferDesc.Height;
+			viewPort.Width = (float)swapC.BufferDesc.Width;
+			viewPort.Height = (float)swapC.BufferDesc.Height;
 			viewPort.MinDepth = 0.0f;
 			viewPort.MaxDepth = 1.0f;
 			viewPort.TopLeftX = 0;
 			viewPort.TopLeftY = 0;
 			context->RSSetViewports(0, &viewPort);
 
-			m_viewPort.Width = swapC.BufferDesc.Width / 2;
-			m_viewPort.Height = swapC.BufferDesc.Height / 2;
+			m_viewPort.Width = (float)(swapC.BufferDesc.Width / 2);
+			m_viewPort.Height = (float)(swapC.BufferDesc.Height / 2);
 			m_viewPort.MinDepth = 0.0f;
 			m_viewPort.MaxDepth = 1.0f;
 			m_viewPort.TopLeftX = 0;
@@ -890,35 +908,9 @@ bool DxEngine::Initialize()
 
 void DxEngine::Draw()
 {
-	Threading drawPlane;
-	/*for (size_t i = 0; i < 4; i++)
-	{
-		for (size_t z = 0; z < 4; z++)
-		{
-			toShaderWorld.SV_WorldMatrix[i][z] = m_model[2].SV_WorldMatrix[i][z];
-		}
-	}*/
-
-	drawPlane.cmd = &command;
-	drawPlane.cont = &defferedContext;
-	drawPlane.lay = &layout;
-	drawPlane.PS = &PS_Shader;
-	drawPlane.srv = &m_secondshaderResource;
-	drawPlane.stride = sizeof(VertexBuffer);
-	drawPlane.vert = &plane_VertBuffer;
-	drawPlane.VS = &VS_SkyboxShader;
-	drawPlane.RTV = &renderTargetView;
-	drawPlane.DSV = &pDSV;
-	drawPlane.view = &viewPort;
-	drawPlane.sampler = &m_sampler;
-	drawPlane.constant = &constantBuffer;
-	drawPlane.toShader = &toShaderWorld;
-
-	//std::thread m_draw(DrawOnThread, &drawPlane);
-
 	timer.Signal();
-	
-//	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), Translate(m_camera.rotate[0], m_camera.rotate[1], m_camera.rotate[2]));
+
+	//	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), Translate(m_camera.rotate[0], m_camera.rotate[1], m_camera.rotate[2]));
 	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(0));
 
 	Matrix temp;
@@ -979,6 +971,31 @@ void DxEngine::Draw()
 		}
 	}
 
+	Threading drawPlane;
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[2].SV_WorldMatrix[i][z];
+		}
+	}
+
+	drawPlane.cmd = &command;
+	drawPlane.cont = &defferedContext;
+	drawPlane.lay = &layout;
+	drawPlane.PS = &PS_Shader;
+	drawPlane.srv = &m_secondshaderResource;
+	drawPlane.stride = sizeof(VertexBuffer);
+	drawPlane.vert = &plane_VertBuffer;
+	drawPlane.VS = &VS_Shader;
+	drawPlane.RTV = &renderTargetView;
+	drawPlane.DSV = &pDSV;
+	drawPlane.view = &viewPort;
+	drawPlane.sampler = &m_sampler;
+	drawPlane.constant = &constantBuffer;
+	drawPlane.toShader = &toShaderWorld;
+
+	//std::thread m_draw(DrawOnThread, &drawPlane);
 	//rotate = MatrixMatrixMultipy(BuildRotationMatrixOnAxisY(ConvertDegreestoRadians(timer.Delta() * 20)), rotate);
 	//for (size_t i = 0; i < 4; i++)
 	//{
@@ -987,8 +1004,6 @@ void DxEngine::Draw()
 	//		toShaderWorld.SV_WorldMatrix[i][z] = rotate.vertex[i][z];
 	//	}
 	//}
-
-	
 
 	D3D11_MAPPED_SUBRESOURCE camData;
 	ZeroMemory(&camData, sizeof(camData));
@@ -1020,7 +1035,7 @@ void DxEngine::Draw()
 
 	context->PSSetSamplers(0, 1, &m_sampler);
 
-	context->OMSetBlendState(m_alphaEnabledBlendState, blendFactor, 0xFFFFFFFF);
+	//	context->OMSetBlendState(m_alphaEnabledBlendState, blendFactor, 0xFFFFFFFF);
 
 
 	m_model[0].pos[0] = -m_camera.pos[0];
@@ -1081,12 +1096,12 @@ void DxEngine::Draw()
 	mult = MatrixMatrixMultipy(mult, BuildRotationMatrixOnAxisX(m_model[1].rotate[0]));
 	for (size_t i = 0; i < 4; i++)
 	{
-		for (size_t z = 0; z < 4; z++)
-		{
-			m_model[1].SV_WorldMatrix[i][z] = mult.vertex[i][z];
-		}
+	for (size_t z = 0; z < 4; z++)
+	{
+	m_model[1].SV_WorldMatrix[i][z] = mult.vertex[i][z];
+	}
 	}*/
-	
+
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -1128,7 +1143,7 @@ void DxEngine::Draw()
 	}
 	D3D11_MAPPED_SUBRESOURCE objData3;
 	ZeroMemory(&objData3, sizeof(objData3));
-	
+
 	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
 	memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
 	context->Unmap(constantBuffer, NULL);
@@ -1140,25 +1155,47 @@ void DxEngine::Draw()
 	context->PSSetShaderResources(0, 1, &m_secondshaderResource);
 	context->IASetVertexBuffers(0, 1, &plane_VertBuffer, &stride, &offset);
 	context->IASetIndexBuffer(plane_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	
+
 	context->Draw(36, 0);
 	/*m_draw.join();
-	context->ExecuteCommandList(command, true);
+	context->ExecuteCommandList(command, false);
 	command->Release();*/
+
+	//context->PSSetShaderResources(0, 1, &m_shipResource);
+	//context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[1].SV_WorldMatrix[i][z];
+		}
+	}
+	ZeroMemory(&objData2, sizeof(objData2));
+
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
+	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
+
+	context->PSSetShaderResources(0, 1, &m_shipResource);
+	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
+	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
+	context->VSSetShader(VS_InstanceShader, 0, 0);
+
+	context->DrawInstanced(numverts, 60, 0, 0);
 
 
 	context->RSSetViewports(1, &m_viewPort);
 
 	//Viewport stuff
 
-//	context->PSSetShaderResources(0, 1, &m_shipResource);
-//	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
-//	context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-//	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-//	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
-//	context->VSSetShader(VS_InstanceShader, 0, 0);
-//
-//	context->DrawInstanced(numverts, 2, 0, 0);
+	//	context->PSSetShaderResources(0, 1, &m_shipResource);
+	//	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
+	//	context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	//	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	//	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
+	//	context->VSSetShader(VS_InstanceShader, 0, 0);
+	//
+	//	context->DrawInstanced(numverts, 2, 0, 0);
 
 
 	context->RSSetState(m_RasterState);

@@ -45,7 +45,7 @@ private:
 
 	struct Instance
 	{
-		XMFLOAT4X4 instance[2];
+		XMFLOAT4X4 instance[60];
 	};
 
 	Instance ship;
