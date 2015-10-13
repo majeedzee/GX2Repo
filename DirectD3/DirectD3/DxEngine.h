@@ -25,6 +25,7 @@ public:
 	bool InitializeDepthStencilView();
 	bool InitializeMatrixes();
 	bool InitializeShaderResources();
+	bool InitializeLight();
 
 	void Draw();
 
@@ -49,8 +50,7 @@ private:
 	};
 
 	Instance ship;
-
-	
+	Light m_point;
 
 	struct Model
 	{
@@ -74,6 +74,7 @@ private:
 	Matrix WorldSpaceCamera;
 	Model m_camera;
 	UINT numverts;
+	UINT torchVerts;
 	float valueX;
 	float valueY;
 
@@ -101,8 +102,10 @@ private:
 	ID3D11Buffer*			VertBuffer;
 	ID3D11Buffer*			IndexBuffer;
 	ID3D11Buffer*			m_VertBuffer;
+	ID3D11Buffer*			m_torchVertBuffer;
 	ID3D11Buffer*			m_IndexBuffer;
 	ID3D11Buffer*			m_InstanceBuffer;
+	ID3D11Buffer*			m_lightBuffer;
 
 	ID3D11Buffer*			plane_VertBuffer;
 	ID3D11Buffer*			plane_IndexBuffer;

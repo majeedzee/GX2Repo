@@ -15,6 +15,7 @@ struct OUTPUT_VERTEX
 	float2 UV : UVCOORD;
 	float3 norm : NORMAL;
 	float3 worldpos : WORLDPOS;
+	float3 spotpos : SPOT;
 };
 
 cbuffer THIS_IS_VRAM : register( b0 )
@@ -41,6 +42,7 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer)
 	Vector = mul(Vector, SV_WorldMatrix);
 	sendToRasterizer.worldpos = Vector.xyz;
 	Vector = mul(Vector, SV_ViewMatrix);
+	sendToRasterizer.spotpos = Vector.xyz;
 	Vector = mul(Vector, SV_ProjectionMatrix);
 
 	sendToRasterizer.posH = Vector;

@@ -7,9 +7,24 @@ struct V_OUT
 	float2 UV : UVCOORD;
 	float3 norm : NORMAL; 
 	float3 worldpos : WORLDPOS;
+	float3 spotpos : SPOT;
 };
 
 SamplerState filter : register(s0);
+
+struct Light
+{
+	float3 pos;
+	float range;
+	float3 atten;
+};
+
+cbuffer Lighting : register(b0)
+{
+	Light pointLight;
+};
+
+
 
 float4 main(V_OUT modulate) : SV_TARGET
 {
@@ -21,12 +36,12 @@ float4 main(V_OUT modulate) : SV_TARGET
 	//	return base;
 
 	float3 genDir = (0, 1, 1);
-	float3 lightDir = normalize(genDir);
-	float3 normal = normalize(modulate.norm);
-	float3 spotDir = (0, 1, -1);
+		float3 lightDir = normalize(genDir);
+		float3 normal = normalize(modulate.norm);
+		float3 spotDir = (0, 1, -1);
 
-	float3 spotCone = normalize(spotDir);
-	float3 spotPos = { 2, 2, 8};
+		float3 spotCone = normalize(spotDir);
+		float3 spotPos = { 2, 2, 8};
 
 	float3 spotdir2 = normalize(spotPos - modulate.worldpos);
 	float spotRatio = clamp(dot(-spotdir2, spotCone), 0, 1);
@@ -36,12 +51,27 @@ float4 main(V_OUT modulate) : SV_TARGET
 	float4 spotAmbColor = { 0.3f, 0.3f, 0.3f, 1 };
 		float4 spotColor = float4(1.0f, 0.0f, 0.0f, 1);
 
-		float3 pointpos = (0, 0, 0);
-		float3 pointdir = pointpos - modulate.worldpos;
-		float distance = length(pointdir);
+		float3 finalColor = (0, 0, 0);
+		float3 pointvec = pointLight.pos - modulate.worldpos;
+		float distance = length(pointvec);
+	float3 ambLight = base * spotAmbColor;
 
-		pointdir /= distance;
-	float pointratio = dot(pointdir, modulate.norm);
+		if (distance > pointLight.range)
+		{
+			return float4(ambLight, base.a);
+		}
+		pointvec /= distance;
+		float intensity = dot(pointvec, normal);
+		float4 diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
+		if (intensity > 0)
+		{
+			finalColor += intensity * base * diffuse;
+			finalColor /= pointLight.atten[0] + (pointLight.atten[1] * distance) + (pointLight.atten[2] * (distance*distance));
+		}
+		finalColor = saturate(finalColor + ambLight);
+		return float4(finalColor, base.a);
+
+	float pointratio = dot(pointvec, modulate.norm);
 		
 	float4 p_ambColor = { 1, 0, 1, 1 };
 
@@ -66,7 +96,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 		//return saturate(m_point + m_dir);
 
 		float4 spot = (spotFactor * spotLightRatio * spotColor * base) + (spotAmbColor * base);
-		return spot;
+		//return spot;
 		//return m_point;
 		//return m_dir;
 		//return saturate(m_dir + spot);

@@ -44,6 +44,8 @@ DxEngine::DxEngine()
 	m_secondshipResource = nullptr;
 	defferedContext = nullptr;
 	command = nullptr;
+	m_torchVertBuffer = nullptr;
+	m_lightBuffer = nullptr;
 
 	fullscreen = false;
 	once = true;
@@ -92,6 +94,8 @@ void DxEngine::ShutDown()
 	ReleaseCOM(m_secondshipResource);
 	ReleaseCOM(command);
 	ReleaseCOM(defferedContext);
+	ReleaseCOM(m_torchVertBuffer);
+	ReleaseCOM(m_lightBuffer);
 }
 
 bool DxEngine::LoadObject(char* path, vector<VertexBuffer> *out_vertices, vector< unsigned int > *indicies)
@@ -190,6 +194,20 @@ bool DxEngine::LoadObject(char* path, vector<VertexBuffer> *out_vertices, vector
 	return true;
 }
 
+bool DxEngine::InitializeLight()
+{
+	m_point.atten[0] = 0;
+	m_point.atten[1] = 0.2f;
+	m_point.atten[2] = 0;
+
+	m_point.range = 100;
+	m_point.pos[0] = 0;
+	m_point.pos[1] = 2;
+	m_point.pos[2] = 5;
+
+	return true;
+}
+
 bool DxEngine::InitializeSwapChain(HWND window)
 {
 	HRESULT hr;
@@ -259,6 +277,9 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	vector<VertexBuffer> m_planeVector;
 	vector<unsigned int> m_planeIndex;
 
+	vector<VertexBuffer> m_torchVector;
+	vector<unsigned int> m_torchIndex;
+
 	LoadObject("Alientree.obj", &m_modelVector, &m_modelIndex);
 	//LoadObject("talon.obj", &m_modelVector, &m_modelIndex);
 
@@ -304,6 +325,17 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	ZeroMemory(&indexData, sizeof(indexData));
 	indexData.pSysMem = &m_planeIndex[0];
 	device->CreateBuffer(&indexBuffer, &indexData, &plane_IndexBuffer);
+
+	LoadObject("torch.obj", &m_torchVector, &m_torchIndex);
+
+	ZeroMemory(&vertBuffer, sizeof(vertBuffer));
+	vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertBuffer.ByteWidth = UINT(sizeof(VertexBuffer) * m_torchVector.size());
+	vertBuffer.Usage = D3D11_USAGE_IMMUTABLE;
+	ZeroMemory(&vertData, sizeof(vertData));
+	vertData.pSysMem = &m_torchVector[0];
+	device->CreateBuffer(&vertBuffer, &vertData, &m_torchVertBuffer);
+	torchVerts = (UINT)m_torchVector.size();
 
 	/// BLAH
 	m_cube.COORD[0] = -0.25;
@@ -448,9 +480,9 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	}
 	m_model.push_back(load);
 
-	load.pos[0] = 1;
+	load.pos[0] = 0.5;
 	load.pos[1] = -1;
-	load.pos[2] = 4;
+	load.pos[2] = 0.25;
 
 	/*load.pos[0] = 1;
 	load.pos[1] = 0;
@@ -460,7 +492,7 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	load.rotate[2] = 0;
 
 	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisX(0));
-	world = Scale(world, 0.5f, 0.5f, 0.5f);
+	world = Scale(world, 0.25f, 0.25f, 0.25f);
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -499,10 +531,10 @@ bool DxEngine::InitializeShaderResources()
 	draw.d = &device;
 	draw.s = &m_shipResource;
 	std::thread m_thread(LoadTextures, &draw);
-	m_thread.detach();
-	CreateDDSTextureFromFile(device, L"OutputCube.dds", NULL, &m_shaderResource);
+	CreateDDSTextureFromFile(device, L"Castle.dds", NULL, &m_shaderResource);
 	CreateDDSTextureFromFile(device, L"DeadGrass.dds", NULL, &m_secondshaderResource);
-	CreateDDSTextureFromFile(device, L"talon.dds", NULL, &m_secondshipResource);
+	CreateDDSTextureFromFile(device, L"torch.dds", NULL, &m_secondshipResource);
+	m_thread.join();
 
 	return true;
 }
@@ -636,6 +668,17 @@ bool DxEngine::InitializeConstantBuffers()
 	instData.pSysMem = &ship;
 
 	device->CreateBuffer(&instBuffer, &instData, &m_InstanceBuffer);
+
+	D3D11_BUFFER_DESC lightbuffer;
+	ZeroMemory(&lightbuffer, sizeof(lightbuffer));
+	lightbuffer.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	lightbuffer.ByteWidth = sizeof(LightFrame);
+	lightbuffer.Usage = D3D11_USAGE_DYNAMIC;
+	lightbuffer.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	lightbuffer.StructureByteStride = sizeof(LightFrame);
+
+	device->CreateBuffer(&lightbuffer, nullptr, &m_lightBuffer);
+
 	if (FAILED(hr))
 	{
 		return false;
@@ -756,7 +799,7 @@ void DxEngine::Resize()
 		}
 		if (s_chain)
 		{
-			//context->OMSetRenderTargets(0, 0, 0);
+			context->OMSetRenderTargets(0, 0, 0);
 
 			ReleaseCOM(renderTargetView);
 			ReleaseCOM(pDSV);
@@ -902,6 +945,8 @@ bool DxEngine::Initialize()
 		return false;
 	}
 
+	InitializeLight();
+
 	return true;
 }
 
@@ -909,10 +954,13 @@ bool DxEngine::Initialize()
 void DxEngine::Draw()
 {
 	timer.Signal();
-
+	//Camera Movement
+#if 1
 	//	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), Translate(m_camera.rotate[0], m_camera.rotate[1], m_camera.rotate[2]));
 	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(0));
-
+	Matrix multcam = MatrixMatrixMultipy(Translate(m_model[1].pos[0], m_model[1].pos[1], m_model[1].pos[2]), BuildRotationMatrixOnAxisY(0));
+	multcam = Scale(multcam, 0.25f, 0.25f, 0.25f);
+	
 	Matrix temp;
 	float temppos[3];
 	temppos[0] = m_camera.SV_WorldMatrix[3][0];
@@ -922,34 +970,55 @@ void DxEngine::Draw()
 	temppos[2] = m_camera.SV_WorldMatrix[3][2];
 	m_camera.SV_WorldMatrix[3][2] = 0;
 
+	Matrix temp1;
+	float temppos1[3];
+	temppos1[0] = m_model[1].SV_WorldMatrix[3][0];
+	m_model[1].SV_WorldMatrix[3][0] = 0;
+	temppos1[1] = m_model[1].SV_WorldMatrix[3][1];
+	m_model[1].SV_WorldMatrix[3][1] = 0;
+	temppos1[2] = m_model[1].SV_WorldMatrix[3][2];
+	m_model[1].SV_WorldMatrix[3][2] = 0;
+
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
 			temp.vertex[i][z] = m_camera.SV_WorldMatrix[i][z];
+			temp1.vertex[i][z] = m_model[1].SV_WorldMatrix[i][z];
 		}
 	}
 
 	Matrix x = BuildRotationMatrixOnAxisX(m_camera.rotate[0]);
 	Matrix y = BuildRotationMatrixOnAxisY(m_camera.rotate[1]);
+	Matrix x1 = BuildRotationMatrixOnAxisX(-m_camera.rotate[0]);
+	Matrix y2 = BuildRotationMatrixOnAxisY(-m_camera.rotate[1]);
 	Matrix r = MatrixMatrixMultipy(x, temp);
+	Matrix rotation = MatrixMatrixMultipy(x1, temp);
 	r = MatrixMatrixMultipy(r, y);
+	rotation = MatrixMatrixMultipy(rotation, y2);
+
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
 			m_camera.SV_WorldMatrix[i][z] = r.vertex[i][z];
+			m_model[1].SV_WorldMatrix[i][z] = rotation.vertex[i][z];
 		}
 	}
 	m_camera.SV_WorldMatrix[3][0] = temppos[0];
 	m_camera.SV_WorldMatrix[3][1] = temppos[1];
 	m_camera.SV_WorldMatrix[3][2] = temppos[2];
 
+	m_model[1].SV_WorldMatrix[3][0] = temppos1[0];
+	m_model[1].SV_WorldMatrix[3][1] = temppos1[1];
+	m_model[1].SV_WorldMatrix[3][2] = temppos1[2];
+
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
 		{
 			m_camera.SV_WorldMatrix[i][z] = MatrixMatrixMultipy(cam, r).vertex[i][z];
+			m_model[1].SV_WorldMatrix[i][z] = MatrixMatrixMultipy(multcam, rotation).vertex[i][z];
 		}
 	}
 
@@ -969,8 +1038,24 @@ void DxEngine::Draw()
 		{
 			toShaderWorld.SV_ViewMatrix[i][z] = inv.vertex[i][z];
 		}
-	}
+	} // Camera Movement
+	m_point.pos[0] = m_model[1].SV_WorldMatrix[3][0];
+	m_point.pos[1] = m_model[1].SV_WorldMatrix[3][1] + 2;
+	m_point.pos[2] = m_model[1].SV_WorldMatrix[3][2] -0.75;
 
+#endif
+
+	LightFrame pointLight;
+	pointLight.point = m_point;
+	D3D11_MAPPED_SUBRESOURCE light;
+	ZeroMemory(&light, sizeof(light));
+	context->Map(m_lightBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &light);
+	memcpy(light.pData, &pointLight, sizeof(pointLight));
+	context->Unmap(m_lightBuffer, NULL);
+	context->PSSetConstantBuffers(0, 1, &m_lightBuffer);
+
+	//Deferred Context Thread
+#if 1
 	Threading drawPlane;
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -996,14 +1081,8 @@ void DxEngine::Draw()
 	drawPlane.toShader = &toShaderWorld;
 
 	//std::thread m_draw(DrawOnThread, &drawPlane);
-	//rotate = MatrixMatrixMultipy(BuildRotationMatrixOnAxisY(ConvertDegreestoRadians(timer.Delta() * 20)), rotate);
-	//for (size_t i = 0; i < 4; i++)
-	//{
-	//	for (size_t z = 0; z < 4; z++)
-	//	{
-	//		toShaderWorld.SV_WorldMatrix[i][z] = rotate.vertex[i][z];
-	//	}
-	//}
+ // 
+#endif
 
 	D3D11_MAPPED_SUBRESOURCE camData;
 	ZeroMemory(&camData, sizeof(camData));
@@ -1035,9 +1114,10 @@ void DxEngine::Draw()
 
 	context->PSSetSamplers(0, 1, &m_sampler);
 
-	//	context->OMSetBlendState(m_alphaEnabledBlendState, blendFactor, 0xFFFFFFFF);
+	//context->OMSetBlendState(m_alphaEnabledBlendState, blendFactor, 0xFFFFFFFF);
 
-
+	//Draw Skybox
+#if 1
 	m_model[0].pos[0] = -m_camera.pos[0];
 	m_model[0].pos[1] = -m_camera.pos[1];
 	m_model[0].pos[2] = -m_camera.pos[2];
@@ -1081,27 +1161,12 @@ void DxEngine::Draw()
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	context->DrawIndexed(36, 0, 0);
-	/*Threading drawthread;
-	drawthread.context = &context;
-	std::thread m_thread(ThreadDraw, &drawthread);
-	m_thread.join();*/
+#endif 
+
+	// Draw Torch
+#if 1
 	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-	/*m_model[1].rotate[0] = -m_camera.rotate[0];
-	m_model[1].rotate[1] = -m_camera.rotate[1];
-	m_model[1].rotate[2] = -m_camera.rotate[2];
-
-	mult = MatrixMatrixMultipy(Translate(m_model[1].pos[0], m_model[1].pos[1], m_model[1].pos[2]), BuildRotationMatrixOnAxisY(m_model[1].rotate[1]));
-
-	mult = MatrixMatrixMultipy(mult, BuildRotationMatrixOnAxisX(m_model[1].rotate[0]));
-	for (size_t i = 0; i < 4; i++)
-	{
-	for (size_t z = 0; z < 4; z++)
-	{
-	m_model[1].SV_WorldMatrix[i][z] = mult.vertex[i][z];
-	}
-	}*/
-
+	
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -1116,24 +1181,29 @@ void DxEngine::Draw()
 	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
 	context->Unmap(constantBuffer, NULL);
 
-	if (!change)
-	{
-		context->PSSetShaderResources(0, 1, &m_shipResource);
-	}
-	else
-	{
-		context->PSSetShaderResources(0, 1, &m_secondshipResource);
-	}
+	//if (!change)
+	//{
+	//	context->PSSetShaderResources(0, 1, &m_shipResource);
+	//}
+	//else
+	//{
+	//	context->PSSetShaderResources(0, 1, &m_secondshipResource);
+	//}
 	//context->VSSetShader(VS_InstanceShader, NULL, 0);
-	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
+	context->PSSetShaderResources(0, 1, &m_secondshipResource);
+	context->IASetVertexBuffers(0, 1, &m_torchVertBuffer, &stride, &offset);
 	context->VSSetShader(VS_Shader, 0, 0);
 	context->PSSetShader(PS_Shader, 0, 0);
 	//context->VSSetShader(VS_InstanceShader, 0, 0);
 	//context->PSSetShader(PS_PixelShader, 0, 0);
-	context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	//context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
-	context->Draw(numverts, 0);
+	context->Draw(torchVerts, 0);
 
+#endif
+
+	// Draw Plane
+#if 1
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -1163,6 +1233,10 @@ void DxEngine::Draw()
 
 	//context->PSSetShaderResources(0, 1, &m_shipResource);
 	//context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+#endif
+
+	// Draw Instanced Trees
+#if 1
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -1185,6 +1259,7 @@ void DxEngine::Draw()
 
 
 	context->RSSetViewports(1, &m_viewPort);
+#endif
 
 	//Viewport stuff
 
@@ -1210,6 +1285,7 @@ void DxEngine::Draw()
 void DxEngine::TranslateCamera(UINT sub, float distance)
 {
 	m_camera.pos[sub] += distance;
+	m_model[1].pos[sub] -= distance;
 }
 
 void DxEngine::RotateCamera(UINT sub, float distance)

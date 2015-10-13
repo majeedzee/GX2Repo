@@ -8,6 +8,19 @@ struct Obj
 	float SV_ViewMatrix[4][4];
 };
 
+struct Light
+{
+	float pos[3];
+	float range;
+	float atten[3];
+	float padding;
+};
+
+struct LightFrame
+{
+	Light point;
+};
+
 struct Threading
 {
 	ID3D11Device** d;

@@ -64,15 +64,13 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="lava_seamless.dds" />
-    <Image Include="Nebula_Sky.dds" />
-    <Image Include="mario.dds" />
     <Image Include="defender.dds" />
-    <Image Include="KingdomHearts.dds" />
-    <Image Include="gummi.dds" />
     <Image Include="Keyblade.dds" />
     <Image Include="OutputCube.dds" />
     <Image Include="talon.dds" />
     <Image Include="AlienTree.dds" />
     <Image Include="DeadGrass.dds" />
+    <Image Include="torch.dds" />
+    <Image Include="Castle.dds" />
   </ItemGroup>
 </Project>

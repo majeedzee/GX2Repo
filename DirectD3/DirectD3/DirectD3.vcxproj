@@ -218,16 +218,14 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="AlienTree.dds" />
+    <Image Include="Castle.dds" />
     <Image Include="DeadGrass.dds" />
     <Image Include="defender.dds" />
-    <Image Include="gummi.dds" />
     <Image Include="Keyblade.dds" />
-    <Image Include="KingdomHearts.dds" />
     <Image Include="lava_seamless.dds" />
-    <Image Include="mario.dds" />
-    <Image Include="Nebula_Sky.dds" />
     <Image Include="OutputCube.dds" />
     <Image Include="talon.dds" />
+    <Image Include="torch.dds" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
