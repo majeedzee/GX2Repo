@@ -20,8 +20,8 @@ using namespace DirectX;
 
 using namespace std;
 
-#define BACKBUFFER_WIDTH	500
-#define BACKBUFFER_HEIGHT	500
+#define BACKBUFFER_WIDTH	1280
+#define BACKBUFFER_HEIGHT	720
 #define PI					3.14159265359
 
 //void ThreadDraw(Threading *thread)

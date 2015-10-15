@@ -86,6 +86,7 @@ private:
 	ID3D11CommandList*		command;
 
 	ID3D11RenderTargetView* renderTargetView;
+	ID3D11RenderTargetView* m_renderTargetViewMap;
 
 	IDXGISwapChain*			s_chain;
 
@@ -93,12 +94,14 @@ private:
 
 	ID3D11Texture2D*		m_texture;
 	ID3D11Texture2D*		pDepthStencil;
+	ID3D11Texture2D*		m_renderTargetMap;
 
 	D3D11_VIEWPORT			viewPort;
 	D3D11_VIEWPORT			m_viewPort;
 
 	ID3D11Buffer*			vram_Buffer;
 	ID3D11Buffer*			constantBuffer;
+	ID3D11Buffer*			deferredBuffer;
 	ID3D11Buffer*			VertBuffer;
 	ID3D11Buffer*			IndexBuffer;
 	ID3D11Buffer*			m_VertBuffer;
@@ -128,6 +131,7 @@ private:
 	ID3D11ShaderResourceView*	m_secondshaderResource;
 	ID3D11ShaderResourceView*	m_shipResource;
 	ID3D11ShaderResourceView*	m_secondshipResource;
+	ID3D11ShaderResourceView*	m_shaderResourceMap;
 
 	ID3D11BlendState*			m_alphaEnabledBlendState;
 
@@ -139,6 +143,8 @@ private:
 	bool FULL_SCREEN;
 	bool change;
 	XTime timer;
+	XMMATRIX mapView;
+	XMMATRIX mapProjection;
 
 public:
 	struct SIMPLE_VERTEX

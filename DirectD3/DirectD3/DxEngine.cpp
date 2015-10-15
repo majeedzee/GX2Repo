@@ -46,6 +46,10 @@ DxEngine::DxEngine()
 	command = nullptr;
 	m_torchVertBuffer = nullptr;
 	m_lightBuffer = nullptr;
+	deferredBuffer = nullptr;
+	m_renderTargetMap = nullptr;
+	m_renderTargetViewMap = nullptr;
+	m_shaderResourceMap = nullptr;
 
 	fullscreen = false;
 	once = true;
@@ -96,6 +100,10 @@ void DxEngine::ShutDown()
 	ReleaseCOM(defferedContext);
 	ReleaseCOM(m_torchVertBuffer);
 	ReleaseCOM(m_lightBuffer);
+	ReleaseCOM(deferredBuffer);
+	ReleaseCOM(m_renderTargetMap);
+	ReleaseCOM(m_renderTargetViewMap);
+	ReleaseCOM(m_shaderResourceMap);
 }
 
 bool DxEngine::LoadObject(char* path, vector<VertexBuffer> *out_vertices, vector< unsigned int > *indicies)
@@ -224,7 +232,7 @@ bool DxEngine::InitializeSwapChain(HWND window)
 	swapChain.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
 	swapChain.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swapChain.Windowed = TRUE;
-	swapChain.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	swapChain.Flags = 0;
 	UINT m_DeviceFlags = 0;
 
 #if _DEBUG
@@ -237,6 +245,40 @@ bool DxEngine::InitializeSwapChain(HWND window)
 	hr = device->CreateRenderTargetView(m_texture, nullptr, &renderTargetView);
 
 	device->CreateDeferredContext(0, &defferedContext);
+
+	D3D11_TEXTURE2D_DESC textureDesc;
+	ZeroMemory(&textureDesc, sizeof(textureDesc));
+	textureDesc.Width = BACKBUFFER_WIDTH/* / 2*/;
+	textureDesc.Height = BACKBUFFER_HEIGHT/* / 2;*/;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+	textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.MiscFlags = 0;
+
+	// Create the texture
+	device->CreateTexture2D(&textureDesc, NULL, &m_renderTargetMap);
+
+	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+	renderTargetViewDesc.Format = textureDesc.Format;
+	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+	// Create the render target view.
+	device->CreateRenderTargetView(m_renderTargetMap, &renderTargetViewDesc, &m_renderTargetViewMap);
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
+	shaderResourceViewDesc.Format = textureDesc.Format;
+	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+	shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+	// Create the shader resource view.
+	device->CreateShaderResourceView(m_renderTargetMap, &shaderResourceViewDesc, &m_shaderResourceMap);
+
 
 	if (FAILED(hr))
 	{
@@ -480,7 +522,7 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	}
 	m_model.push_back(load);
 
-	load.pos[0] = 0.5;
+	load.pos[0] = 0.25;
 	load.pos[1] = -1;
 	load.pos[2] = 0.25;
 
@@ -513,6 +555,25 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisX(0));
 	world = Scale(world, 64, 0.1f, 64);
 
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			load.SV_WorldMatrix[i][z] = world.vertex[i][z];
+		}
+	}
+	m_model.push_back(load);
+
+	//
+
+	load.pos[0] = 0.5;
+	load.pos[1] = -1;
+	load.pos[2] = 0.25;
+	load.rotate[0] = 0;
+	load.rotate[1] = 0;
+	load.rotate[2] = 0;
+
+	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisX(0));
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -576,6 +637,16 @@ bool DxEngine::InitializeMatrixes()
 
 	//rotate = BuildIdentityMatrix();
 	//rotate.vertex[3][2] = 2;
+	XMVECTOR mapCamTarget/* = m_camera.pos*/;
+	memcpy_s(&mapCamTarget, 1, m_camera.pos, 1);
+	XMVECTOR mapCamPosition = XMVectorSetY(mapCamTarget, XMVectorGetY(mapCamTarget) + 100.0f);
+	XMVECTOR mapCamUp = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+	//Set the View matrix
+	mapView = XMMatrixLookAtLH(mapCamPosition, mapCamTarget, mapCamUp);
+
+	// Build an orthographic projection matrix
+	mapProjection = XMMatrixOrthographicLH(512, 512, 1.0f, 1000.0f);
 
 	return true;
 }
@@ -631,6 +702,22 @@ bool DxEngine::InitializeConstantBuffers()
 	constbuffDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 	hr = device->CreateBuffer(&constbuffDesc, nullptr, &constantBuffer);
+	if (FAILED(hr))
+	{
+		return false;
+	}
+
+	ZeroMemory(&constbuffDesc, sizeof(constbuffDesc));
+	constbuffDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	constbuffDesc.ByteWidth = sizeof(Obj);
+	constbuffDesc.Usage = D3D11_USAGE_DYNAMIC;
+	constbuffDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	hr = device->CreateBuffer(&constbuffDesc, nullptr, &deferredBuffer);
+	if (FAILED(hr))
+	{
+		return false;
+	}
 
 	Matrix identity[60];
 	float move = 0;
@@ -958,8 +1045,7 @@ void DxEngine::Draw()
 #if 1
 	//	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), Translate(m_camera.rotate[0], m_camera.rotate[1], m_camera.rotate[2]));
 	Matrix cam = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(0));
-	Matrix multcam = MatrixMatrixMultipy(Translate(m_model[1].pos[0], m_model[1].pos[1], m_model[1].pos[2]), BuildRotationMatrixOnAxisY(0));
-	multcam = Scale(multcam, 0.25f, 0.25f, 0.25f);
+	
 	
 	Matrix temp;
 	float temppos[3];
@@ -1018,7 +1104,7 @@ void DxEngine::Draw()
 		for (size_t z = 0; z < 4; z++)
 		{
 			m_camera.SV_WorldMatrix[i][z] = MatrixMatrixMultipy(cam, r).vertex[i][z];
-			m_model[1].SV_WorldMatrix[i][z] = MatrixMatrixMultipy(multcam, rotation).vertex[i][z];
+			//m_model[1].SV_WorldMatrix[i][z] = MatrixMatrixMultipy(multcam, rotation).vertex[i][z];
 		}
 	}
 
@@ -1031,6 +1117,17 @@ void DxEngine::Draw()
 		}
 	}
 	//inv = Inverse(inv);
+	Matrix multcam = MatrixMatrixMultipy(Translate(m_model[1].pos[0], m_model[1].pos[1], m_model[1].pos[2]), BuildRotationMatrixOnAxisY(0));
+	multcam = Scale(multcam, 0.25f, 0.25f, 0.25f);
+	//Matrix please = MatrixMatrixMultipy(multcam, inv);
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			m_model[1].SV_WorldMatrix[i][z] = multcam.vertex[i][z];
+		}
+	}
+	
 
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -1079,8 +1176,7 @@ void DxEngine::Draw()
 	drawPlane.sampler = &m_sampler;
 	drawPlane.constant = &constantBuffer;
 	drawPlane.toShader = &toShaderWorld;
-
-	//std::thread m_draw(DrawOnThread, &drawPlane);
+	std::thread m_draw(DrawOnThread, &drawPlane);
  // 
 #endif
 
@@ -1093,7 +1189,6 @@ void DxEngine::Draw()
 	context->VSSetConstantBuffers(1, 1, &constantBuffer);
 
 
-	Resize();
 
 	context->OMSetRenderTargets(1, &renderTargetView, pDSV);
 	context->RSSetViewports(1, &viewPort);
@@ -1101,6 +1196,7 @@ void DxEngine::Draw()
 	float m_color[4] = { 1.0f, 1.0f, 1.0f, 1 };
 	context->ClearRenderTargetView(renderTargetView, m_color);
 	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	Resize();
 
 	float blendFactor[4];
 	blendFactor[0] = 0.0f;
@@ -1203,7 +1299,7 @@ void DxEngine::Draw()
 #endif
 
 	// Draw Plane
-#if 1
+#if 0
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -1227,9 +1323,7 @@ void DxEngine::Draw()
 	context->IASetIndexBuffer(plane_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 	context->Draw(36, 0);
-	/*m_draw.join();
-	context->ExecuteCommandList(command, false);
-	command->Release();*/
+	
 
 	//context->PSSetShaderResources(0, 1, &m_shipResource);
 	//context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
@@ -1249,17 +1343,201 @@ void DxEngine::Draw()
 	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
 	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
 	context->Unmap(constantBuffer, NULL);
+	context->VSSetConstantBuffers(1, 1, &constantBuffer);
 
 	context->PSSetShaderResources(0, 1, &m_shipResource);
 	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
 	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
 	context->VSSetShader(VS_InstanceShader, 0, 0);
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	context->PSSetShader(PS_Shader, 0, 0);
 
 	context->DrawInstanced(numverts, 60, 0, 0);
 
+#endif
+
+	// Render to Texture
+#if 0
+//
+//	context->OMSetRenderTargets(1, &m_renderTargetViewMap, pDSV);
+//	context->ClearRenderTargetView(m_renderTargetViewMap, m_color);
+//
+//
+//
+//	//Draw Skybox
+//#if 1
+//	m_model[0].pos[0] = -m_camera.pos[0];
+//	m_model[0].pos[1] = -m_camera.pos[1];
+//	m_model[0].pos[2] = -m_camera.pos[2];
+//	m_model[0].rotate[0] = -m_camera.rotate[0];
+//	m_model[0].rotate[1] = -m_camera.rotate[1];
+//	m_model[0].rotate[2] = -m_camera.rotate[2];
+//
+//	mult = MatrixMatrixMultipy(Translate(m_model[0].pos[0], m_model[0].pos[1], m_model[0].pos[2]), BuildRotationMatrixOnAxisY(m_model[0].rotate[1]));
+//
+//	for (size_t i = 0; i < 4; i++)
+//	{
+//		for (size_t z = 0; z < 4; z++)
+//		{
+//			m_model[0].SV_WorldMatrix[i][z] = mult.vertex[i][z];
+//		}
+//	}
+//
+//	for (size_t i = 0; i < 4; i++)
+//	{
+//		for (size_t z = 0; z < 4; z++)
+//		{
+//			toShaderWorld.SV_WorldMatrix[i][z] = m_model[0].SV_WorldMatrix[i][z];
+//
+//		}
+//	}
+//	ZeroMemory(&objData, sizeof(objData));
+//
+//	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData);
+//	memcpy(objData.pData, &toShaderWorld, sizeof(toShaderWorld));
+//	context->Unmap(constantBuffer, NULL);
+//	context->VSSetConstantBuffers(1, 1, &constantBuffer);
+//
+//	context->IASetVertexBuffers(0, 1, &VertBuffer, &stride, &offset);
+//	context->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+//	context->VSSetShader(VS_SkyboxShader, 0, 0);
+//	context->PSSetShader(PS_SkyboxShader, 0, 0);
+//	context->IASetInputLayout(layout);
+//	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+//
+//	context->DrawIndexed(36, 0, 0);
+//#endif 
+//
+//	// Draw Torch
+//#if 1
+//	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+//
+//	for (size_t i = 0; i < 4; i++)
+//	{
+//		for (size_t z = 0; z < 4; z++)
+//		{
+//			toShaderWorld.SV_WorldMatrix[i][z] = m_model[1].SV_WorldMatrix[i][z];
+//		}
+//	}
+//	ZeroMemory(&objData2, sizeof(objData2));
+//
+//	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
+//	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
+//	context->Unmap(constantBuffer, NULL);
+//
+//	//if (!change)
+//	//{
+//	//	context->PSSetShaderResources(0, 1, &m_shipResource);
+//	//}
+//	//else
+//	//{
+//	//	context->PSSetShaderResources(0, 1, &m_secondshipResource);
+//	//}
+//	//context->VSSetShader(VS_InstanceShader, NULL, 0);
+//	context->PSSetShaderResources(0, 1, &m_secondshipResource);
+//	context->IASetVertexBuffers(0, 1, &m_torchVertBuffer, &stride, &offset);
+//	context->VSSetShader(VS_Shader, 0, 0);
+//	context->PSSetShader(PS_Shader, 0, 0);
+//	//context->VSSetShader(VS_InstanceShader, 0, 0);
+//	//context->PSSetShader(PS_PixelShader, 0, 0);
+//	//context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+//
+//	context->Draw(torchVerts, 0);
+//
+//#endif
+//
+//	// Draw Plane
+//#if 1
+//	for (size_t i = 0; i < 4; i++)
+//	{
+//		for (size_t z = 0; z < 4; z++)
+//		{
+//			toShaderWorld.SV_WorldMatrix[i][z] = m_model[2].SV_WorldMatrix[i][z];
+//		}
+//	}
+//	D3D11_MAPPED_SUBRESOURCE objData3;
+//	ZeroMemory(&objData3, sizeof(objData3));
+//
+//	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+//	memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
+//	context->Unmap(constantBuffer, NULL);
+//
+//
+//	//context->VSSetShader(VS_SkyboxShader, 0, 0);
+//	context->VSSetShader(VS_Shader, 0, 0);
+//	context->PSSetShader(PS_Shader, 0, 0);
+//	context->PSSetShaderResources(0, 1, &m_secondshaderResource);
+//	context->IASetVertexBuffers(0, 1, &plane_VertBuffer, &stride, &offset);
+//	context->IASetIndexBuffer(plane_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+//
+//	context->Draw(36, 0);
+//
+//
+//	//context->PSSetShaderResources(0, 1, &m_shipResource);
+//	//context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+//#endif
+//
+//	// Draw Instanced Trees
+//#if 1
+//	for (size_t i = 0; i < 4; i++)
+//	{
+//		for (size_t z = 0; z < 4; z++)
+//		{
+//			toShaderWorld.SV_WorldMatrix[i][z] = m_model[1].SV_WorldMatrix[i][z];
+//		}
+//	}
+//	ZeroMemory(&objData2, sizeof(objData2));
+//
+//	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
+//	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
+//	context->Unmap(constantBuffer, NULL);
+//	context->VSSetConstantBuffers(1, 1, &constantBuffer);
+//
+//	context->PSSetShaderResources(0, 1, &m_shipResource);
+//	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
+//	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
+//	context->VSSetShader(VS_InstanceShader, 0, 0);
+//	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+//	context->PSSetShader(PS_Shader, 0, 0);
+//
+//	context->DrawInstanced(numverts, 60, 0, 0);
+//#endif
+//
+//	context->OMSetRenderTargets(1, &renderTargetView, pDSV);
+//
+//	//
+//	for (size_t i = 0; i < 4; i++)
+//	{
+//		for (size_t z = 0; z < 4; z++)
+//		{
+//			toShaderWorld.SV_WorldMatrix[i][z] = m_model[3].SV_WorldMatrix[i][z];
+//
+//		}
+//	}
+//	ZeroMemory(&objData, sizeof(objData));
+//
+//	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData);
+//	memcpy(objData.pData, &toShaderWorld, sizeof(toShaderWorld));
+//	context->Unmap(constantBuffer, NULL);
+//	context->VSSetConstantBuffers(1, 1, &constantBuffer);
+//
+//	context->PSSetShaderResources(0, 1, &m_shaderResourceMap);
+//	context->IASetVertexBuffers(0, 1, &VertBuffer, &stride, &offset);
+//	context->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+//	context->VSSetShader(VS_Shader, 0, 0);
+//	context->PSSetShader(PS_SkyboxShader, 0, 0);
+//	context->IASetInputLayout(layout);
+//	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+//
+//	context->DrawIndexed(36, 0, 0);
+#endif
+	///
+	m_draw.join();
+	context->ExecuteCommandList(command, false);
+	command->Release();
+
 
 	context->RSSetViewports(1, &m_viewPort);
-#endif
 
 	//Viewport stuff
 

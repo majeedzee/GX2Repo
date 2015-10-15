@@ -48,7 +48,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 
 	float spotFactor = (spotRatio > 0.95f) ? 1 : 0;
 	float spotLightRatio = clamp(dot(spotdir2, normal), 0, 1);
-	float4 spotAmbColor = { 0.3f, 0.3f, 0.3f, 1 };
+	float4 spotAmbColor = { 0.1f, 0.1f, 0.1f, 1 };
 		float4 spotColor = float4(1.0f, 0.0f, 0.0f, 1);
 
 		float3 finalColor = (0, 0, 0);
@@ -67,6 +67,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 		{
 			finalColor += intensity * base * diffuse;
 			finalColor /= pointLight.atten[0] + (pointLight.atten[1] * distance) + (pointLight.atten[2] * (distance*distance));
+			//finalColor *= pow(max(dot(-pointvec, spotDir), 0.0f), 10.0f);
 		}
 		finalColor = saturate(finalColor + ambLight);
 		return float4(finalColor, base.a);

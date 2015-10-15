@@ -286,6 +286,7 @@ void DrawOnThread(Threading *draw)
 	(*draw->cont)->Map(*draw->constant, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
 	memcpy(objData3.pData, draw->toShader, sizeof(*draw->toShader));
 	(*draw->cont)->Unmap(*draw->constant, NULL);
+	(*draw->cont)->VSSetConstantBuffers(1, 1, draw->constant);
 
 	(*draw->cont)->IASetVertexBuffers(0, 1, draw->vert, &draw->stride, &offset);
 	//(*draw->cont)->IASetIndexBuffer(*draw->index, DXGI_FORMAT_R32_UINT, 0);
