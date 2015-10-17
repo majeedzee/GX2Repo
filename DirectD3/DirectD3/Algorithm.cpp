@@ -280,9 +280,15 @@ void DrawOnThread(Threading *draw)
 
 	(*draw->cont)->PSSetSamplers(0, 1, draw->sampler);
 
+	D3D11_MAPPED_SUBRESOURCE light;
+	ZeroMemory(&light, sizeof(light));
+	(*draw->cont)->Map(*draw->lightconstant, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &light);
+	memcpy(light.pData, draw->m_point, sizeof(*draw->m_point));
+	(*draw->cont)->Unmap(*draw->lightconstant, NULL);
+	(*draw->cont)->PSSetConstantBuffers(0, 1, draw->lightconstant);
+
 	D3D11_MAPPED_SUBRESOURCE objData3;
 	ZeroMemory(&objData3, sizeof(objData3));
-
 	(*draw->cont)->Map(*draw->constant, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
 	memcpy(objData3.pData, draw->toShader, sizeof(*draw->toShader));
 	(*draw->cont)->Unmap(*draw->constant, NULL);
@@ -293,7 +299,8 @@ void DrawOnThread(Threading *draw)
 	(*draw->cont)->VSSetShader(*draw->VS, 0, 0);
 	(*draw->cont)->PSSetShader(*draw->PS, 0, 0);
 	(*draw->cont)->IASetInputLayout(*draw->lay);
-	(*draw->cont)->PSSetShaderResources(0, 1, draw->srv);
+	(*draw->cont)->PSSetShaderResources(0, 2, draw->srv);
+	(*draw->cont)->PSSetShaderResources(1, 2, draw->srv);
 	(*draw->cont)->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	(*draw->cont)->Draw(36, 0);
@@ -313,7 +320,7 @@ Matrix Scale(Matrix scale, float x, float y, float z)
 Matrix BuildProjectionMatrix(float width, float height)
 {
 	float Yscale = 1 / tan(ConvertDegreestoRadians(35));
-	float Xscale = Yscale * (width / height);
+	float Xscale = Yscale * (height / width );
 	Matrix project;
 	project.vertex[0][0] = Xscale;
 	project.vertex[0][1] = 0;

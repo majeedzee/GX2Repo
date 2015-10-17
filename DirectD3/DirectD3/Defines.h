@@ -12,6 +12,7 @@ using namespace DirectX;
 #include <thread>
 #include <ctime>
 #include <vector>
+#include <string.h>
 
 #include "DDSTextureLoader.h"
 #include "XTime.h"

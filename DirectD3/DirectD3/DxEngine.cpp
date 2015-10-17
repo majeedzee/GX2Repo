@@ -52,7 +52,7 @@ DxEngine::DxEngine()
 	m_shaderResourceMap = nullptr;
 
 	fullscreen = false;
-	once = true;
+	once = false;
 	FULL_SCREEN = false;
 	change = false;
 
@@ -245,40 +245,6 @@ bool DxEngine::InitializeSwapChain(HWND window)
 	hr = device->CreateRenderTargetView(m_texture, nullptr, &renderTargetView);
 
 	device->CreateDeferredContext(0, &defferedContext);
-
-	D3D11_TEXTURE2D_DESC textureDesc;
-	ZeroMemory(&textureDesc, sizeof(textureDesc));
-	textureDesc.Width = BACKBUFFER_WIDTH/* / 2*/;
-	textureDesc.Height = BACKBUFFER_HEIGHT/* / 2;*/;
-	textureDesc.MipLevels = 1;
-	textureDesc.ArraySize = 1;
-	textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	textureDesc.SampleDesc.Count = 1;
-	textureDesc.Usage = D3D11_USAGE_DEFAULT;
-	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-	textureDesc.CPUAccessFlags = 0;
-	textureDesc.MiscFlags = 0;
-
-	// Create the texture
-	device->CreateTexture2D(&textureDesc, NULL, &m_renderTargetMap);
-
-	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
-	renderTargetViewDesc.Format = textureDesc.Format;
-	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	renderTargetViewDesc.Texture2D.MipSlice = 0;
-
-	// Create the render target view.
-	device->CreateRenderTargetView(m_renderTargetMap, &renderTargetViewDesc, &m_renderTargetViewMap);
-
-	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
-	shaderResourceViewDesc.Format = textureDesc.Format;
-	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-	shaderResourceViewDesc.Texture2D.MipLevels = 1;
-
-	// Create the shader resource view.
-	device->CreateShaderResourceView(m_renderTargetMap, &shaderResourceViewDesc, &m_shaderResourceMap);
-
 
 	if (FAILED(hr))
 	{
@@ -637,16 +603,6 @@ bool DxEngine::InitializeMatrixes()
 
 	//rotate = BuildIdentityMatrix();
 	//rotate.vertex[3][2] = 2;
-	XMVECTOR mapCamTarget/* = m_camera.pos*/;
-	memcpy_s(&mapCamTarget, 1, m_camera.pos, 1);
-	XMVECTOR mapCamPosition = XMVectorSetY(mapCamTarget, XMVectorGetY(mapCamTarget) + 100.0f);
-	XMVECTOR mapCamUp = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-
-	//Set the View matrix
-	mapView = XMMatrixLookAtLH(mapCamPosition, mapCamTarget, mapCamUp);
-
-	// Build an orthographic projection matrix
-	mapProjection = XMMatrixOrthographicLH(512, 512, 1.0f, 1000.0f);
 
 	return true;
 }
@@ -886,7 +842,9 @@ void DxEngine::Resize()
 		}
 		if (s_chain)
 		{
-			context->OMSetRenderTargets(0, 0, 0);
+			context->ClearState();
+			ID3D11RenderTargetView* temp = nullptr;
+			context->OMSetRenderTargets(1, &temp, 0);
 
 			ReleaseCOM(renderTargetView);
 			ReleaseCOM(pDSV);
@@ -897,8 +855,10 @@ void DxEngine::Resize()
 			hr = s_chain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
 			DXGI_SWAP_CHAIN_DESC swapC;
 			s_chain->GetDesc(&swapC);
-
+		//	XMMATRIX pro;
+		//	pro = XMMatrixPerspectiveLH((float)swapC.BufferDesc.Width, (float)swapC.BufferDesc.Height, 0.1, 1000);
 			Matrix project = BuildProjectionMatrix((float)swapC.BufferDesc.Width, (float)swapC.BufferDesc.Height);
+			//memcpy_s(&project, sizeof(Matrix), &pro, sizeof(Matrix));
 			for (size_t i = 0; i < 4; i++)
 			{
 				for (size_t z = 0; z < 4; z++)
@@ -1161,8 +1121,11 @@ void DxEngine::Draw()
 			toShaderWorld.SV_WorldMatrix[i][z] = m_model[2].SV_WorldMatrix[i][z];
 		}
 	}
+	Resize();
 
 	drawPlane.cmd = &command;
+	drawPlane.lightconstant = &m_lightBuffer;
+	drawPlane.m_point = &pointLight;
 	drawPlane.cont = &defferedContext;
 	drawPlane.lay = &layout;
 	drawPlane.PS = &PS_Shader;
@@ -1174,7 +1137,7 @@ void DxEngine::Draw()
 	drawPlane.DSV = &pDSV;
 	drawPlane.view = &viewPort;
 	drawPlane.sampler = &m_sampler;
-	drawPlane.constant = &constantBuffer;
+	drawPlane.constant = &deferredBuffer;
 	drawPlane.toShader = &toShaderWorld;
 	std::thread m_draw(DrawOnThread, &drawPlane);
  // 
@@ -1196,7 +1159,7 @@ void DxEngine::Draw()
 	float m_color[4] = { 1.0f, 1.0f, 1.0f, 1 };
 	context->ClearRenderTargetView(renderTargetView, m_color);
 	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	Resize();
+
 
 	float blendFactor[4];
 	blendFactor[0] = 0.0f;
@@ -1276,6 +1239,7 @@ void DxEngine::Draw()
 	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
 	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
 	context->Unmap(constantBuffer, NULL);
+	context->VSSetConstantBuffers(1, 1, &constantBuffer);
 
 	//if (!change)
 	//{
@@ -1286,7 +1250,8 @@ void DxEngine::Draw()
 	//	context->PSSetShaderResources(0, 1, &m_secondshipResource);
 	//}
 	//context->VSSetShader(VS_InstanceShader, NULL, 0);
-	context->PSSetShaderResources(0, 1, &m_secondshipResource);
+	context->PSSetShaderResources(0, 2, &m_secondshipResource);
+	context->PSSetShaderResources(1, 2, &m_secondshaderResource);
 	context->IASetVertexBuffers(0, 1, &m_torchVertBuffer, &stride, &offset);
 	context->VSSetShader(VS_Shader, 0, 0);
 	context->PSSetShader(PS_Shader, 0, 0);
@@ -1298,7 +1263,9 @@ void DxEngine::Draw()
 
 #endif
 
+
 	// Draw Plane
+	D3D11_MAPPED_SUBRESOURCE objData3;
 #if 0
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -1307,9 +1274,9 @@ void DxEngine::Draw()
 			toShaderWorld.SV_WorldMatrix[i][z] = m_model[2].SV_WorldMatrix[i][z];
 		}
 	}
-	D3D11_MAPPED_SUBRESOURCE objData3;
-	ZeroMemory(&objData3, sizeof(objData3));
 
+	ZeroMemory(&objData3, sizeof(objData3));
+	
 	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
 	memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
 	context->Unmap(constantBuffer, NULL);
@@ -1345,7 +1312,8 @@ void DxEngine::Draw()
 	context->Unmap(constantBuffer, NULL);
 	context->VSSetConstantBuffers(1, 1, &constantBuffer);
 
-	context->PSSetShaderResources(0, 1, &m_shipResource);
+	context->PSSetShaderResources(0, 2, &m_shipResource);
+	context->PSSetShaderResources(1, 2, &m_secondshaderResource);
 	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
 	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
 	context->VSSetShader(VS_InstanceShader, 0, 0);
@@ -1356,152 +1324,160 @@ void DxEngine::Draw()
 
 #endif
 
-	// Render to Texture
-#if 0
+
+	
+	
+	//context->OMSetRenderTargets(1, &renderTargetView, pDSV);
+	//context->PSSetSamplers(0, 1, &m_sampler);
+	//context->IASetInputLayout(layout);
+	//context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	
+
+	// Second Viewport
+#if 1
 //
 //	context->OMSetRenderTargets(1, &m_renderTargetViewMap, pDSV);
 //	context->ClearRenderTargetView(m_renderTargetViewMap, m_color);
 //
-//
-//
-//	//Draw Skybox
-//#if 1
-//	m_model[0].pos[0] = -m_camera.pos[0];
-//	m_model[0].pos[1] = -m_camera.pos[1];
-//	m_model[0].pos[2] = -m_camera.pos[2];
-//	m_model[0].rotate[0] = -m_camera.rotate[0];
-//	m_model[0].rotate[1] = -m_camera.rotate[1];
-//	m_model[0].rotate[2] = -m_camera.rotate[2];
-//
-//	mult = MatrixMatrixMultipy(Translate(m_model[0].pos[0], m_model[0].pos[1], m_model[0].pos[2]), BuildRotationMatrixOnAxisY(m_model[0].rotate[1]));
-//
-//	for (size_t i = 0; i < 4; i++)
-//	{
-//		for (size_t z = 0; z < 4; z++)
-//		{
-//			m_model[0].SV_WorldMatrix[i][z] = mult.vertex[i][z];
-//		}
-//	}
-//
-//	for (size_t i = 0; i < 4; i++)
-//	{
-//		for (size_t z = 0; z < 4; z++)
-//		{
-//			toShaderWorld.SV_WorldMatrix[i][z] = m_model[0].SV_WorldMatrix[i][z];
-//
-//		}
-//	}
-//	ZeroMemory(&objData, sizeof(objData));
-//
-//	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData);
-//	memcpy(objData.pData, &toShaderWorld, sizeof(toShaderWorld));
-//	context->Unmap(constantBuffer, NULL);
-//	context->VSSetConstantBuffers(1, 1, &constantBuffer);
-//
-//	context->IASetVertexBuffers(0, 1, &VertBuffer, &stride, &offset);
-//	context->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-//	context->VSSetShader(VS_SkyboxShader, 0, 0);
-//	context->PSSetShader(PS_SkyboxShader, 0, 0);
-//	context->IASetInputLayout(layout);
-//	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-//
-//	context->DrawIndexed(36, 0, 0);
-//#endif 
-//
-//	// Draw Torch
-//#if 1
-//	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-//
-//	for (size_t i = 0; i < 4; i++)
-//	{
-//		for (size_t z = 0; z < 4; z++)
-//		{
-//			toShaderWorld.SV_WorldMatrix[i][z] = m_model[1].SV_WorldMatrix[i][z];
-//		}
-//	}
-//	ZeroMemory(&objData2, sizeof(objData2));
-//
-//	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
-//	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
-//	context->Unmap(constantBuffer, NULL);
-//
-//	//if (!change)
-//	//{
-//	//	context->PSSetShaderResources(0, 1, &m_shipResource);
-//	//}
-//	//else
-//	//{
-//	//	context->PSSetShaderResources(0, 1, &m_secondshipResource);
-//	//}
-//	//context->VSSetShader(VS_InstanceShader, NULL, 0);
-//	context->PSSetShaderResources(0, 1, &m_secondshipResource);
-//	context->IASetVertexBuffers(0, 1, &m_torchVertBuffer, &stride, &offset);
-//	context->VSSetShader(VS_Shader, 0, 0);
-//	context->PSSetShader(PS_Shader, 0, 0);
-//	//context->VSSetShader(VS_InstanceShader, 0, 0);
-//	//context->PSSetShader(PS_PixelShader, 0, 0);
-//	//context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-//
-//	context->Draw(torchVerts, 0);
-//
-//#endif
-//
-//	// Draw Plane
-//#if 1
-//	for (size_t i = 0; i < 4; i++)
-//	{
-//		for (size_t z = 0; z < 4; z++)
-//		{
-//			toShaderWorld.SV_WorldMatrix[i][z] = m_model[2].SV_WorldMatrix[i][z];
-//		}
-//	}
-//	D3D11_MAPPED_SUBRESOURCE objData3;
-//	ZeroMemory(&objData3, sizeof(objData3));
-//
-//	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
-//	memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
-//	context->Unmap(constantBuffer, NULL);
-//
-//
-//	//context->VSSetShader(VS_SkyboxShader, 0, 0);
-//	context->VSSetShader(VS_Shader, 0, 0);
-//	context->PSSetShader(PS_Shader, 0, 0);
-//	context->PSSetShaderResources(0, 1, &m_secondshaderResource);
-//	context->IASetVertexBuffers(0, 1, &plane_VertBuffer, &stride, &offset);
-//	context->IASetIndexBuffer(plane_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-//
-//	context->Draw(36, 0);
-//
-//
-//	//context->PSSetShaderResources(0, 1, &m_shipResource);
-//	//context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-//#endif
-//
-//	// Draw Instanced Trees
-//#if 1
-//	for (size_t i = 0; i < 4; i++)
-//	{
-//		for (size_t z = 0; z < 4; z++)
-//		{
-//			toShaderWorld.SV_WorldMatrix[i][z] = m_model[1].SV_WorldMatrix[i][z];
-//		}
-//	}
-//	ZeroMemory(&objData2, sizeof(objData2));
-//
-//	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
-//	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
-//	context->Unmap(constantBuffer, NULL);
-//	context->VSSetConstantBuffers(1, 1, &constantBuffer);
-//
-//	context->PSSetShaderResources(0, 1, &m_shipResource);
-//	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
-//	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
-//	context->VSSetShader(VS_InstanceShader, 0, 0);
-//	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-//	context->PSSetShader(PS_Shader, 0, 0);
-//
-//	context->DrawInstanced(numverts, 60, 0, 0);
-//#endif
+	context->RSSetViewports(1, &m_viewPort);
+
+	Matrix newViewport = BuildIdentityMatrix();
+	newViewport.vertex[3][2] = 1;
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_ViewMatrix[i][z] = newViewport.vertex[i][z];
+		}
+	}
+	//Draw Skybox
+#if 0
+
+	//mult = MatrixMatrixMultipy(Translate(m_model[0].pos[0], m_model[0].pos[1], m_model[0].pos[2]), BuildRotationMatrixOnAxisY(m_model[0].rotate[1]));
+
+	//for (size_t i = 0; i < 4; i++)
+	//{
+	//	for (size_t z = 0; z < 4; z++)
+	//	{
+	//		m_model[0].SV_WorldMatrix[i][z] = mult.vertex[i][z];
+	//	}
+	//}
+
+	m_model[0].SV_WorldMatrix[3][0] = 0;
+	m_model[0].SV_WorldMatrix[3][1] = 0;
+	m_model[0].SV_WorldMatrix[3][2] = -1;
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[0].SV_WorldMatrix[i][z];
+
+		}
+	}
+	ZeroMemory(&objData, sizeof(objData));
+
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData);
+	memcpy(objData.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
+	context->VSSetConstantBuffers(1, 1, &constantBuffer);
+
+	context->PSSetShaderResources(0, 1, &m_shaderResource);
+	context->IASetVertexBuffers(0, 1, &VertBuffer, &stride, &offset);
+	context->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	context->VSSetShader(VS_SkyboxShader, 0, 0);
+	context->PSSetShader(PS_SkyboxShader, 0, 0);
+	context->IASetInputLayout(layout);
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	context->DrawIndexed(36, 0, 0);
+#endif 
+
+	// Draw Torch
+#if 1
+	//context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[1].SV_WorldMatrix[i][z];
+		}
+	}
+	ZeroMemory(&objData2, sizeof(objData2));
+
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
+	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
+	context->VSSetConstantBuffers(1, 1, &constantBuffer);
+
+	context->PSSetShaderResources(0, 1, &m_secondshipResource);
+	context->IASetVertexBuffers(0, 1, &m_torchVertBuffer, &stride, &offset);
+	context->VSSetShader(VS_Shader, 0, 0);
+	context->PSSetShader(PS_Shader, 0, 0);
+	//context->VSSetShader(VS_InstanceShader, 0, 0);
+	//context->PSSetShader(PS_PixelShader, 0, 0);
+	//context->IASetIndexBuffer(m_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	context->Draw(torchVerts, 0);
+
+#endif
+
+	// Draw Plane
+#if 1
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[2].SV_WorldMatrix[i][z];
+		}
+	}
+	ZeroMemory(&objData3, sizeof(objData3));
+
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+	memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
+	context->VSSetConstantBuffers(1, 1, &constantBuffer);
+
+
+	//context->VSSetShader(VS_SkyboxShader, 0, 0);
+	context->VSSetShader(VS_Shader, 0, 0);
+	context->PSSetShader(PS_Shader, 0, 0);
+	context->PSSetShaderResources(0, 1, &m_secondshaderResource);
+	context->IASetVertexBuffers(0, 1, &plane_VertBuffer, &stride, &offset);
+	context->IASetIndexBuffer(plane_IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	context->Draw(36, 0);
+
+
+	//context->PSSetShaderResources(0, 1, &m_shipResource);
+	//context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+#endif
+
+	// Draw Instanced Trees
+#if 1
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[1].SV_WorldMatrix[i][z];
+		}
+	}
+	ZeroMemory(&objData2, sizeof(objData2));
+
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData2);
+	memcpy(objData2.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
+	context->VSSetConstantBuffers(1, 1, &constantBuffer);
+
+	context->PSSetShaderResources(0, 1, &m_shipResource);
+	context->IASetVertexBuffers(0, 1, &m_VertBuffer, &stride, &offset);
+	context->VSSetConstantBuffers(2, 1, &m_InstanceBuffer);
+	context->VSSetShader(VS_InstanceShader, 0, 0);
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	context->PSSetShader(PS_Shader, 0, 0);
+
+	context->DrawInstanced(numverts, 60, 0, 0);
+#endif
 //
 //	context->OMSetRenderTargets(1, &renderTargetView, pDSV);
 //
@@ -1535,10 +1511,6 @@ void DxEngine::Draw()
 	m_draw.join();
 	context->ExecuteCommandList(command, false);
 	command->Release();
-
-
-	context->RSSetViewports(1, &m_viewPort);
-
 	//Viewport stuff
 
 	//	context->PSSetShaderResources(0, 1, &m_shipResource);

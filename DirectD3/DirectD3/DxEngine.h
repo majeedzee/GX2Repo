@@ -143,8 +143,6 @@ private:
 	bool FULL_SCREEN;
 	bool change;
 	XTime timer;
-	XMMATRIX mapView;
-	XMMATRIX mapProjection;
 
 public:
 	struct SIMPLE_VERTEX

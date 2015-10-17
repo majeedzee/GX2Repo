@@ -3,7 +3,7 @@
 //************************************************************
 #include "DxEngine.h"
 
-
+bool resize = false;
 
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
@@ -127,9 +127,10 @@ bool DEMO_APP::Run()
 		//m_Engine->RotateCameraY(-0.05);
 		m_Engine->RotateCamera(0, 0.05);
 	}
-	if (GetAsyncKeyState(VK_NUMPAD1) & 0x1)
+	if (resize)
 	{
-		m_Engine->SetChange();
+		m_Engine->ChangeOnce();
+		resize = false;
 	}
 	if (GetAsyncKeyState(VK_TAB) & 0x1)
 	{
@@ -199,7 +200,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}break;
 	case WM_SIZE:
 	{
-		
+		resize = true;
 	}break;
 	case (WM_DESTROY) : { PostQuitMessage(0); }
 						break;

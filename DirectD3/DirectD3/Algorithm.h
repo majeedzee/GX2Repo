@@ -40,6 +40,8 @@ struct Threading
 	ID3D11SamplerState** sampler;
 	UINT stride; 
 	Obj* toShader;
+	LightFrame* m_point;
+	ID3D11Buffer** lightconstant;
 };
 
 struct Vertex

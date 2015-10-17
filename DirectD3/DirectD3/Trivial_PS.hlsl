@@ -1,5 +1,7 @@
 texture2D Texture : register(t0);
 
+texture2D m_texture : register(t1);
+
 struct V_OUT
 {
 	float4 posH : SV_POSITION;
@@ -29,6 +31,8 @@ cbuffer Lighting : register(b0)
 float4 main(V_OUT modulate) : SV_TARGET
 {
 	float4 base = Texture.Sample(filter, modulate.UV.xy);
+	float4 second = m_texture.Sample(filter, modulate.UV.xy);
+	base *= second;
 	if (base.a < 0.1)
 	{
 		discard;
