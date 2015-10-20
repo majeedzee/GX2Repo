@@ -82,8 +82,12 @@ private:
 
 	ID3D11DeviceContext*	context;
 	ID3D11DeviceContext*	defferedContext;
+	ID3D11DeviceContext*	defferedContextObj1;
+	ID3D11DeviceContext*	defferedContextObj2;
 	
 	ID3D11CommandList*		command;
+	ID3D11CommandList*		commandObj1;
+	ID3D11CommandList*		commandObj2;
 
 	ID3D11RenderTargetView* renderTargetView;
 	ID3D11RenderTargetView* m_renderTargetViewMap;
@@ -109,6 +113,7 @@ private:
 	ID3D11Buffer*			m_IndexBuffer;
 	ID3D11Buffer*			m_InstanceBuffer;
 	ID3D11Buffer*			m_lightBuffer;
+	ID3D11Buffer*			m_transBuffer;
 
 	ID3D11Buffer*			plane_VertBuffer;
 	ID3D11Buffer*			plane_IndexBuffer;
@@ -132,11 +137,13 @@ private:
 	ID3D11ShaderResourceView*	m_shipResource;
 	ID3D11ShaderResourceView*	m_secondshipResource;
 	ID3D11ShaderResourceView*	m_shaderResourceMap;
+	ID3D11ShaderResourceView*	m_transparentResource;
 
 	ID3D11BlendState*			m_alphaEnabledBlendState;
 
-
 	ID3D11RasterizerState*		m_RasterState;
+	ID3D11RasterizerState*		m_FrontState;
+	ID3D11RasterizerState*		m_BackState;
 
 	bool fullscreen;
 	bool once;

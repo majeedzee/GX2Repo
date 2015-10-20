@@ -37,7 +37,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 	{
 		discard;
 	}
-	//	return base;
+		//return base;
 
 	float3 genDir = (0, 1, 1);
 		float3 lightDir = normalize(genDir);
@@ -97,15 +97,17 @@ float4 main(V_OUT modulate) : SV_TARGET
 		//float3 final = ambColor + lightColor * diffuse + lightColor * specular;
 		//return saturate((dot(lightDir, normal) * base) + (base + ambColor));
 		//float4 m_point = (pointratio * p_ambColor * base) + (base + p_ambColor);
-		float4 m_dir = saturate((dot(lightDir, normal) * base) + (base + ambColor));
+	float4 m_dir = saturate((dot(lightDir, normal) * base) + (base + ambColor));
+		float4 m_dirReturn = float4(m_dir.xyz, base.a);
 		//float4 m_dir = (dirRatio* ambColor * base) + (base + ambColor);
 		//return saturate(m_point + m_dir);
 
 		float4 spot = (spotFactor * spotLightRatio * spotColor * base) + (spotAmbColor * base);
+			float4 m_spotReturn = float4(spot.xyz, base.a);
 		//return spot;
 		//return m_point;
 		//return m_dir;
-		return saturate(m_point + spot + m_dir);
+		return float4(saturate(m_point.rgb + m_spotReturn.rgb + m_dirReturn.rgb), base.a);
 		//return saturate((pointratio * p_ambColor * base) + (base + p_ambColor));
 	//return float4(final, 1.0);
 }

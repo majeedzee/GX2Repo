@@ -223,6 +223,7 @@
     <Image Include="defender.dds" />
     <Image Include="Keyblade.dds" />
     <Image Include="lava_seamless.dds" />
+    <Image Include="numbers_test.dds" />
     <Image Include="OutputCube.dds" />
     <Image Include="talon.dds" />
     <Image Include="torch.dds" />

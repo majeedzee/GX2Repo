@@ -38,10 +38,15 @@ struct Threading
 	ID3D11RenderTargetView** RTV;
 	D3D11_VIEWPORT* view;
 	ID3D11SamplerState** sampler;
+	ID3D11RasterizerState** back;
+	ID3D11RasterizerState** front;
+	ID3D11RasterizerState** base;
+	ID3D11BlendState** blend;
 	UINT stride; 
 	Obj* toShader;
 	LightFrame* m_point;
 	ID3D11Buffer** lightconstant;
+	bool alpha;
 };
 
 struct Vertex

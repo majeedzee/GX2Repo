@@ -50,6 +50,14 @@ DxEngine::DxEngine()
 	m_renderTargetMap = nullptr;
 	m_renderTargetViewMap = nullptr;
 	m_shaderResourceMap = nullptr;
+	m_FrontState = nullptr;
+	m_BackState = nullptr;
+	m_transBuffer = nullptr;
+	m_transparentResource = nullptr;
+	commandObj1 = nullptr;
+	commandObj2 = nullptr;
+	defferedContextObj1 = nullptr;
+	defferedContextObj2 = nullptr;
 
 	fullscreen = false;
 	once = false;
@@ -104,6 +112,16 @@ void DxEngine::ShutDown()
 	ReleaseCOM(m_renderTargetMap);
 	ReleaseCOM(m_renderTargetViewMap);
 	ReleaseCOM(m_shaderResourceMap);
+	ReleaseCOM(m_FrontState);
+	ReleaseCOM(m_BackState);
+	ReleaseCOM(m_transBuffer);
+	ReleaseCOM(m_transparentResource);
+	ReleaseCOM(commandObj1);
+	ReleaseCOM(commandObj2);
+	ReleaseCOM(defferedContextObj1);
+	ReleaseCOM(defferedContextObj2);
+	
+	
 }
 
 bool DxEngine::LoadObject(char* path, vector<VertexBuffer> *out_vertices, vector< unsigned int > *indicies)
@@ -245,6 +263,9 @@ bool DxEngine::InitializeSwapChain(HWND window)
 	hr = device->CreateRenderTargetView(m_texture, nullptr, &renderTargetView);
 
 	device->CreateDeferredContext(0, &defferedContext);
+	device->CreateDeferredContext(0, &defferedContextObj1);
+	device->CreateDeferredContext(0, &defferedContextObj2);
+		
 
 	if (FAILED(hr))
 	{
@@ -287,6 +308,9 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 
 	vector<VertexBuffer> m_torchVector;
 	vector<unsigned int> m_torchIndex;
+
+	vector<VertexBuffer> m_transVector;
+	vector<unsigned int> m_transIndex;
 
 	LoadObject("Alientree.obj", &m_modelVector, &m_modelIndex);
 	//LoadObject("talon.obj", &m_modelVector, &m_modelIndex);
@@ -344,6 +368,16 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 	vertData.pSysMem = &m_torchVector[0];
 	device->CreateBuffer(&vertBuffer, &vertData, &m_torchVertBuffer);
 	torchVerts = (UINT)m_torchVector.size();
+
+	LoadObject("MyCube.obj", &m_transVector, &m_transIndex);
+
+	ZeroMemory(&vertBuffer, sizeof(vertBuffer));
+	vertBuffer.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertBuffer.ByteWidth = UINT(sizeof(VertexBuffer) * m_transVector.size());
+	vertBuffer.Usage = D3D11_USAGE_IMMUTABLE;
+	ZeroMemory(&vertData, sizeof(vertData));
+	vertData.pSysMem = &m_transVector[0];
+	device->CreateBuffer(&vertBuffer, &vertData, &m_transBuffer);
 
 	/// BLAH
 	m_cube.COORD[0] = -0.25;
@@ -532,14 +566,33 @@ bool DxEngine::InitializeVertexandIndexBuffers()
 
 	//
 
-	load.pos[0] = 0.5;
-	load.pos[1] = -1;
-	load.pos[2] = 0.25;
+	load.pos[0] = 5;
+	load.pos[1] = 0;
+	load.pos[2] = 0.75;
 	load.rotate[0] = 0;
 	load.rotate[1] = 0;
 	load.rotate[2] = 0;
 
 	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisX(0));
+	//world = Scale(world, 5, 5, 5);
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			load.SV_WorldMatrix[i][z] = world.vertex[i][z];
+		}
+	}
+	m_model.push_back(load);
+
+	load.pos[0] = 5;
+	load.pos[1] = 0;
+	load.pos[2] = 2;
+	load.rotate[0] = 0;
+	load.rotate[1] = 0;
+	load.rotate[2] = 0;
+
+	world = MatrixMatrixMultipy(Translate(load.pos[0], load.pos[1], load.pos[2]), BuildRotationMatrixOnAxisX(0));
+	//world = Scale(world, 5, 5, 5);
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -561,6 +614,7 @@ bool DxEngine::InitializeShaderResources()
 	CreateDDSTextureFromFile(device, L"Castle.dds", NULL, &m_shaderResource);
 	CreateDDSTextureFromFile(device, L"DeadGrass.dds", NULL, &m_secondshaderResource);
 	CreateDDSTextureFromFile(device, L"torch.dds", NULL, &m_secondshipResource);
+	CreateDDSTextureFromFile(device, L"numbers_test.dds", NULL, &m_transparentResource);
 	m_thread.join();
 
 	return true;
@@ -735,15 +789,15 @@ bool DxEngine::InitializeConstantBuffers()
 bool DxEngine::InitializeBlendState()
 {
 	D3D11_BLEND_DESC blendDesc;
-	ZeroMemory(&blendDesc, sizeof(D3D11_BLEND_DESC));
-	blendDesc.RenderTarget[0].BlendEnable = TRUE;
+	ZeroMemory(&blendDesc, sizeof(blendDesc));
+	blendDesc.RenderTarget[0].BlendEnable = true;
 	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
 	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
 	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
 	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
 	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].RenderTargetWriteMask = 0x0f;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
 	device->CreateBlendState(&blendDesc, &m_alphaEnabledBlendState);
 
@@ -808,7 +862,7 @@ bool DxEngine::InitializeRasterizerState()
 
 	D3D11_RASTERIZER_DESC rasterDesc;
 	rasterDesc.AntialiasedLineEnable = true;
-	rasterDesc.CullMode = D3D11_CULL_BACK;
+	rasterDesc.CullMode = D3D11_CULL_NONE;
 	rasterDesc.DepthBias = 0;
 	rasterDesc.DepthBiasClamp = 0.0f;
 	rasterDesc.DepthClipEnable = true;
@@ -819,6 +873,19 @@ bool DxEngine::InitializeRasterizerState()
 	rasterDesc.SlopeScaledDepthBias = 0.0f;
 
 	hr = device->CreateRasterizerState(&rasterDesc, &m_RasterState);
+
+	ZeroMemory(&rasterDesc, sizeof(rasterDesc));
+	rasterDesc.AntialiasedLineEnable = true;
+	rasterDesc.FillMode = D3D11_FILL_SOLID;
+	rasterDesc.CullMode = D3D11_CULL_FRONT;
+	device->CreateRasterizerState(&rasterDesc, &m_FrontState);
+
+	ZeroMemory(&rasterDesc, sizeof(rasterDesc));
+	rasterDesc.AntialiasedLineEnable = true;
+	rasterDesc.FillMode = D3D11_FILL_SOLID;
+	rasterDesc.CullMode = D3D11_CULL_BACK;
+	device->CreateRasterizerState(&rasterDesc, &m_BackState);
+
 	if (FAILED(hr))
 	{
 		return false;
@@ -1139,7 +1206,74 @@ void DxEngine::Draw()
 	drawPlane.sampler = &m_sampler;
 	drawPlane.constant = &deferredBuffer;
 	drawPlane.toShader = &toShaderWorld;
+	drawPlane.base = &m_RasterState;
+	drawPlane.blend = &m_alphaEnabledBlendState;
+	drawPlane.alpha = false;
 	std::thread m_draw(DrawOnThread, &drawPlane);
+
+	Threading transObj1;
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[3].SV_WorldMatrix[i][z];
+		}
+	}
+	transObj1.cmd = &commandObj1;
+	transObj1.lightconstant = &m_lightBuffer;
+	transObj1.m_point = &pointLight;
+	transObj1.cont = &defferedContextObj1;////
+	transObj1.lay = &layout;
+	transObj1.PS = &PS_Shader;
+	transObj1.srv = &m_transparentResource;
+	transObj1.stride = sizeof(VertexBuffer);
+	transObj1.vert = &m_transBuffer;
+	transObj1.VS = &VS_Shader;
+	transObj1.RTV = &renderTargetView;
+	transObj1.DSV = &pDSV;
+	transObj1.view = &viewPort;
+	transObj1.sampler = &m_sampler;
+	transObj1.constant = &deferredBuffer;
+	transObj1.toShader = &toShaderWorld;
+	transObj1.back = &m_BackState;
+	transObj1.front = &m_FrontState;
+	transObj1.base = &m_RasterState;
+	transObj1.blend = &m_alphaEnabledBlendState;
+	transObj1.alpha = true;
+
+	//std::thread m_drawObj1(DrawOnThread, &transObj1);
+
+	Threading transObj2;
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[4].SV_WorldMatrix[i][z];
+		}
+	}
+	transObj2.cmd = &commandObj2;
+	transObj2.lightconstant = &m_lightBuffer;
+	transObj2.m_point = &pointLight;
+	transObj2.cont = &defferedContextObj2;////
+	transObj2.lay = &layout;
+	transObj2.PS = &PS_Shader;
+	transObj2.srv = &m_transparentResource;
+	transObj2.stride = sizeof(VertexBuffer);
+	transObj2.vert = &m_transBuffer;
+	transObj2.VS = &VS_Shader;
+	transObj2.RTV = &renderTargetView;
+	transObj2.DSV = &pDSV;
+	transObj2.view = &viewPort;
+	transObj2.sampler = &m_sampler;
+	transObj2.constant = &deferredBuffer;
+	transObj2.toShader = &toShaderWorld;
+	transObj2.back = &m_BackState;
+	transObj2.front = &m_FrontState;
+	transObj2.base = &m_RasterState;
+	transObj2.blend = &m_alphaEnabledBlendState;
+	transObj2.alpha = true;
+
+	//std::thread m_drawObj2(DrawOnThread, &transObj2);
  // 
 #endif
 
@@ -1152,14 +1286,9 @@ void DxEngine::Draw()
 	context->VSSetConstantBuffers(1, 1, &constantBuffer);
 
 
-
 	context->OMSetRenderTargets(1, &renderTargetView, pDSV);
 	context->RSSetViewports(1, &viewPort);
-
-	float m_color[4] = { 1.0f, 1.0f, 1.0f, 1 };
-	context->ClearRenderTargetView(renderTargetView, m_color);
-	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
+	context->RSSetState(m_RasterState);
 
 	float blendFactor[4];
 	blendFactor[0] = 0.0f;
@@ -1167,13 +1296,20 @@ void DxEngine::Draw()
 	blendFactor[2] = 0.0f;
 	blendFactor[3] = 0.0f;
 
+	context->OMSetBlendState(m_alphaEnabledBlendState, blendFactor, 0xFFFFFFFF);
+
+	float m_color[4] = { 1.0f, 1.0f, 1.0f, 1 };
+	context->ClearRenderTargetView(renderTargetView, m_color);
+	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+
+
 
 
 	context->PSSetShaderResources(0, 1, &m_shaderResource);
 
 	context->PSSetSamplers(0, 1, &m_sampler);
 
-	//context->OMSetBlendState(m_alphaEnabledBlendState, blendFactor, 0xFFFFFFFF);
 
 	//Draw Skybox
 #if 1
@@ -1266,7 +1402,7 @@ void DxEngine::Draw()
 
 	// Draw Plane
 	D3D11_MAPPED_SUBRESOURCE objData3;
-#if 0
+#if 1
 	for (size_t i = 0; i < 4; i++)
 	{
 		for (size_t z = 0; z < 4; z++)
@@ -1324,13 +1460,183 @@ void DxEngine::Draw()
 
 #endif
 
+	// Transparent cube
+#if 0 
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[3].SV_WorldMatrix[i][z];
+		}
+	}
+
+	ZeroMemory(&objData3, sizeof(objData3));
+
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+	memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
+
+
+	//context->VSSetShader(VS_SkyboxShader, 0, 0);
+	context->VSSetShader(VS_Shader, 0, 0);
+	context->PSSetShader(PS_Shader, 0, 0);
+	context->PSSetShaderResources(0, 1, &m_transparentResource);
+	context->IASetVertexBuffers(0, 1, &m_transBuffer, &stride, &offset);
+
+	context->RSSetState(m_FrontState);
+	context->Draw(36, 0);
+	context->RSSetState(m_BackState);
+	context->Draw(36, 0);
+#endif 
+
+#if 0 
+	for (size_t i = 0; i < 4; i++)
+	{
+		for (size_t z = 0; z < 4; z++)
+		{
+			toShaderWorld.SV_WorldMatrix[i][z] = m_model[4].SV_WorldMatrix[i][z];
+		}
+	}
+
+	ZeroMemory(&objData3, sizeof(objData3));
+
+	context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+	memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
+	context->Unmap(constantBuffer, NULL);
+
+
+	//context->VSSetShader(VS_SkyboxShader, 0, 0);
+	context->VSSetShader(VS_Shader, 0, 0);
+	context->PSSetShader(PS_Shader, 0, 0);
+	context->PSSetShaderResources(0, 1, &m_transparentResource);
+	context->IASetVertexBuffers(0, 1, &m_transBuffer, &stride, &offset);
+
+	context->RSSetState(m_FrontState);
+	context->Draw(36, 0);
+	context->RSSetState(m_BackState);
+	context->Draw(36, 0);
+#endif 
+	/*m_drawObj1.join();
+	m_drawObj2.join();*/
+	float check1 = (m_model[3].pos[2] - m_model[1].pos[2]);
+	float check2 = (m_model[4].pos[2] - m_model[1].pos[2]);
+	if (check1 > check2)
+	{
+		/*context->ExecuteCommandList(commandObj1, true);
+		commandObj1->Release();
+
+		context->ExecuteCommandList(commandObj2, true);
+		commandObj2->Release();*/
+
+		for (size_t i = 0; i < 4; i++)
+		{
+			for (size_t z = 0; z < 4; z++)
+			{
+				toShaderWorld.SV_WorldMatrix[i][z] = m_model[3].SV_WorldMatrix[i][z];
+			}
+		}
+
+		ZeroMemory(&objData3, sizeof(objData3));
+
+		context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+		memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
+		context->Unmap(constantBuffer, NULL);
+
+
+		//context->VSSetShader(VS_SkyboxShader, 0, 0);
+		context->VSSetShader(VS_Shader, 0, 0);
+		context->PSSetShader(PS_Shader, 0, 0);
+		context->PSSetShaderResources(0, 1, &m_transparentResource);
+		context->IASetVertexBuffers(0, 1, &m_transBuffer, &stride, &offset);
+
+		context->RSSetState(m_FrontState);
+		context->Draw(36, 0);
+		context->RSSetState(m_BackState);
+		context->Draw(36, 0);
+
+		for (size_t i = 0; i < 4; i++)
+		{
+			for (size_t z = 0; z < 4; z++)
+			{
+				toShaderWorld.SV_WorldMatrix[i][z] = m_model[4].SV_WorldMatrix[i][z];
+			}
+		}
+
+		ZeroMemory(&objData3, sizeof(objData3));
+
+		context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+		memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
+		context->Unmap(constantBuffer, NULL);
+
+		context->RSSetState(m_FrontState);
+		context->Draw(36, 0);
+		context->RSSetState(m_BackState);
+		context->Draw(36, 0);
+
+	}
+	else
+	{
+		/*context->ExecuteCommandList(commandObj2, true);
+		commandObj2->Release();
+
+		context->ExecuteCommandList(commandObj1, true);
+		commandObj1->Release();*/
+		for (size_t i = 0; i < 4; i++)
+		{
+			for (size_t z = 0; z < 4; z++)
+			{
+				toShaderWorld.SV_WorldMatrix[i][z] = m_model[4].SV_WorldMatrix[i][z];
+			}
+		}
+
+		ZeroMemory(&objData3, sizeof(objData3));
+
+		context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+		memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
+		context->Unmap(constantBuffer, NULL);
+
+
+		//context->VSSetShader(VS_SkyboxShader, 0, 0);
+		context->VSSetShader(VS_Shader, 0, 0);
+		context->PSSetShader(PS_Shader, 0, 0);
+		context->PSSetShaderResources(0, 1, &m_transparentResource);
+		context->IASetVertexBuffers(0, 1, &m_transBuffer, &stride, &offset);
+
+		context->RSSetState(m_FrontState);
+		context->Draw(36, 0);
+		context->RSSetState(m_BackState);
+		context->Draw(36, 0);
+
+		for (size_t i = 0; i < 4; i++)
+		{
+			for (size_t z = 0; z < 4; z++)
+			{
+				toShaderWorld.SV_WorldMatrix[i][z] = m_model[3].SV_WorldMatrix[i][z];
+			}
+		}
+
+		ZeroMemory(&objData3, sizeof(objData3));
+
+		context->Map(constantBuffer, NULL, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, NULL, &objData3);
+		memcpy(objData3.pData, &toShaderWorld, sizeof(toShaderWorld));
+		context->Unmap(constantBuffer, NULL);
+
+		context->RSSetState(m_FrontState);
+		context->Draw(36, 0);
+		context->RSSetState(m_BackState);
+		context->Draw(36, 0);
+	}
 
 	
+
+	m_draw.join();
+	context->ExecuteCommandList(command, true);
+	command->Release();
 	
-	//context->OMSetRenderTargets(1, &renderTargetView, pDSV);
-	//context->PSSetSamplers(0, 1, &m_sampler);
-	//context->IASetInputLayout(layout);
-	//context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	/*context->OMSetRenderTargets(1, &renderTargetView, pDSV);
+	context->PSSetSamplers(0, 1, &m_sampler);
+	context->IASetInputLayout(layout);
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);*/
 	
 
 	// Second Viewport
@@ -1351,7 +1657,7 @@ void DxEngine::Draw()
 		}
 	}
 	//Draw Skybox
-#if 0
+#if 1
 
 	//mult = MatrixMatrixMultipy(Translate(m_model[0].pos[0], m_model[0].pos[1], m_model[0].pos[2]), BuildRotationMatrixOnAxisY(m_model[0].rotate[1]));
 
@@ -1394,7 +1700,7 @@ void DxEngine::Draw()
 
 	// Draw Torch
 #if 1
-	//context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -1478,6 +1784,8 @@ void DxEngine::Draw()
 
 	context->DrawInstanced(numverts, 60, 0, 0);
 #endif
+
+
 //
 //	context->OMSetRenderTargets(1, &renderTargetView, pDSV);
 //
@@ -1508,9 +1816,7 @@ void DxEngine::Draw()
 //	context->DrawIndexed(36, 0, 0);
 #endif
 	///
-	m_draw.join();
-	context->ExecuteCommandList(command, false);
-	command->Release();
+
 	//Viewport stuff
 
 	//	context->PSSetShaderResources(0, 1, &m_shipResource);

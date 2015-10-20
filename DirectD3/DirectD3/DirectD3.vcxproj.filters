@@ -72,5 +72,6 @@
     <Image Include="DeadGrass.dds" />
     <Image Include="torch.dds" />
     <Image Include="Castle.dds" />
+    <Image Include="numbers_test.dds" />
   </ItemGroup>
 </Project>

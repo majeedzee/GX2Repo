@@ -274,6 +274,8 @@ void DrawOnThread(Threading *draw)
 	(*draw->cont)->OMSetRenderTargets(1, draw->RTV, *draw->DSV);
 	(*draw->cont)->RSSetViewports(1, draw->view);
 
+	(*draw->cont)->RSSetState(*draw->base);
+	(*draw->cont)->OMSetBlendState(*draw->blend, NULL, 0xFFFFFFFF);
 	//float m_color[4] = { 1.0f, 1.0f, 1.0f, 1 };
 	//(*draw->cont)->ClearRenderTargetView(*draw->RTV, m_color);
 	//(*draw->cont)->ClearDepthStencilView(*draw->DSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
@@ -299,11 +301,21 @@ void DrawOnThread(Threading *draw)
 	(*draw->cont)->VSSetShader(*draw->VS, 0, 0);
 	(*draw->cont)->PSSetShader(*draw->PS, 0, 0);
 	(*draw->cont)->IASetInputLayout(*draw->lay);
-	(*draw->cont)->PSSetShaderResources(0, 2, draw->srv);
+	(*draw->cont)->PSSetShaderResources(0, 1, draw->srv);
 	(*draw->cont)->PSSetShaderResources(1, 2, draw->srv);
 	(*draw->cont)->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	(*draw->cont)->Draw(36, 0);
+	
+	if (draw->alpha)
+	{
+		(*draw->cont)->RSSetState(*draw->front);
+		(*draw->cont)->Draw(36, 0);
+		(*draw->cont)->RSSetState(*draw->back);
+		(*draw->cont)->Draw(36, 0);
+	}
+	else
+	{
+		(*draw->cont)->Draw(36, 0);
+	}
 	(*draw->cont)->FinishCommandList(true, draw->cmd);
 }
 
