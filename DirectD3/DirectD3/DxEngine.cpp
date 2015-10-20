@@ -228,7 +228,7 @@ bool DxEngine::InitializeSwapChain(HWND window)
 	swapChain.BufferDesc.RefreshRate.Numerator = 60;
 	swapChain.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChain.OutputWindow = window;
-	swapChain.SampleDesc.Count = 1;
+	swapChain.SampleDesc.Count = 4;
 	swapChain.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
 	swapChain.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swapChain.Windowed = TRUE;
@@ -763,7 +763,7 @@ bool DxEngine::InitializeDepthStencilView()
 	descDepth.MipLevels = 1;
 	descDepth.ArraySize = 1;
 	descDepth.Format = DXGI_FORMAT_D32_FLOAT;
-	descDepth.SampleDesc.Count = 1;
+	descDepth.SampleDesc.Count = 4;
 	descDepth.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
 	descDepth.Usage = D3D11_USAGE_DEFAULT;
 	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
@@ -874,7 +874,7 @@ void DxEngine::Resize()
 			descDepth.MipLevels = 1;
 			descDepth.ArraySize = 1;
 			descDepth.Format = DXGI_FORMAT_D32_FLOAT;
-			descDepth.SampleDesc.Count = 1;
+			descDepth.SampleDesc.Count = 4;
 			descDepth.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
 			descDepth.Usage = D3D11_USAGE_DEFAULT;
 			descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;

@@ -19,6 +19,7 @@ class DEMO_APP
 
 public:
 
+	XTime timer;
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run();
 	bool ShutDown();
@@ -65,67 +66,67 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 bool DEMO_APP::Run()
 {
-	
+	timer.Signal();
 	if (GetAsyncKeyState(VK_UP) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0, 0.05));
 		//m_camera.pos[2] += 0.05;
-		m_Engine->TranslateCamera(2, -0.05);
+		m_Engine->TranslateCamera(2, (float)(-3 * timer.Delta()));
 	}
 	if (GetAsyncKeyState(VK_DOWN) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0, -0.05));
 		//m_camera.pos[2] -= 0.05;
-		m_Engine->TranslateCamera(2, 0.05);
+		m_Engine->TranslateCamera(2, (float)(3 * timer.Delta()));
 	}
 	if (GetAsyncKeyState(VK_RIGHT) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0.05, 0, 0));
 		//m_camera.pos[0] += 0.05;
-		m_Engine->TranslateCamera(0, -0.05);
+		m_Engine->TranslateCamera(0, (float)(-3 * timer.Delta()));
 	}
 	if (GetAsyncKeyState(VK_LEFT) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(-0.05, 0, 0));
 		//m_camera.pos[0] -= 0.05;
-		m_Engine->TranslateCamera(0, 0.05);
+		m_Engine->TranslateCamera(0, (float)(3 * timer.Delta()));
 	}
 	if (GetAsyncKeyState(VK_SPACE) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0.05, 0));
 		//m_camera.pos[1] += 0.05;
-		m_Engine->TranslateCamera(1, 0.05);
+		m_Engine->TranslateCamera(1, (float)(3 * timer.Delta()));
 	}
 	if (GetAsyncKeyState(VK_SHIFT) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, Translate(0, 0.05, 0));
 		//m_camera.pos[1] -= 0.05;
-		m_Engine->TranslateCamera(1, -0.05);
+		m_Engine->TranslateCamera(1, (float)(-3 * timer.Delta()));
 	}
 
 	if (GetAsyncKeyState(VK_NUMPAD4) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, BuildRotationMatrixOnAxisX(0.05));
-		m_Engine->RotateCamera(1, -0.05);
+		m_Engine->RotateCamera(1, (float)(-3 * timer.Delta()));
 	}
 	if (GetAsyncKeyState(VK_NUMPAD6) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(WorldSpaceCamera, BuildRotationMatrixOnAxisX(-0.05));
 		//m_Engine->RotateCameraX(-0.05);
-		m_Engine->RotateCamera(1, 0.05);
+		m_Engine->RotateCamera(1, (float)(3 * timer.Delta()));
 	}
 	if (GetAsyncKeyState(VK_NUMPAD8) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(-0.05));
 		//m_Engine->RotateCameraY(0.05);
 		//m_Engine->SetValueY(0.005);
-		m_Engine->RotateCamera(0, -0.05);
+		m_Engine->RotateCamera(0, (float)(-3 * timer.Delta()));
 	}
 	if (GetAsyncKeyState(VK_NUMPAD2) & 0x1)
 	{
 		//WorldSpaceCamera = MatrixMatrixMultipy(Translate(m_camera.pos[0], m_camera.pos[1], m_camera.pos[2]), BuildRotationMatrixOnAxisY(0.05));
 		//m_Engine->RotateCameraY(-0.05);
-		m_Engine->RotateCamera(0, 0.05);
+		m_Engine->RotateCamera(0, (float)(3 * timer.Delta()));
 	}
 	if (resize)
 	{

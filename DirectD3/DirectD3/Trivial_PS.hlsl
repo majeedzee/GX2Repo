@@ -53,7 +53,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 	float spotFactor = (spotRatio > 0.95f) ? 1 : 0;
 	float spotLightRatio = clamp(dot(spotdir2, normal), 0, 1);
 	float4 spotAmbColor = { 0.1f, 0.1f, 0.1f, 1 };
-		float4 spotColor = float4(1.0f, 0.0f, 0.0f, 1);
+		float4 spotColor = float4(0.0f, 1.0f, 0.0f, 1);
 
 		float3 finalColor = (0, 0, 0);
 		float3 pointvec = pointLight.pos - modulate.worldpos;
@@ -66,7 +66,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 		}
 		pointvec /= distance;
 		float intensity = dot(pointvec, normal);
-		float4 diffuse = { 1.0f, 1.0f, 1.0f, 1.0f };
+		float4 diffuse = { 0.0f, 0.0f, 1.0f, 1.0f };
 		if (intensity > 0)
 		{
 			finalColor += intensity * base * diffuse;
@@ -74,14 +74,15 @@ float4 main(V_OUT modulate) : SV_TARGET
 			//finalColor *= pow(max(dot(-pointvec, spotDir), 0.0f), 10.0f);
 		}
 		finalColor = saturate(finalColor + ambLight);
-		return float4(finalColor, base.a);
+		float4 m_point = float4(finalColor, base.a);
+		//return m_point;
 
 	float pointratio = dot(pointvec, modulate.norm);
 		
 	float4 p_ambColor = { 1, 0, 1, 1 };
 
 
-		float4 ambColor = { 0.0, 0.0, 0.01, 1 };
+		float4 ambColor = { 0.1, 0.0, 0.01, 1 };
 		float4 lightColor = { 0.7, 0.7, 0.7, 1 };
 
 		float dirRatio = clamp(dot(lightDir, normal), 0, 1);
@@ -95,7 +96,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 
 		//float3 final = ambColor + lightColor * diffuse + lightColor * specular;
 		//return saturate((dot(lightDir, normal) * base) + (base + ambColor));
-		float4 m_point = (pointratio * p_ambColor * base) + (base + p_ambColor);
+		//float4 m_point = (pointratio * p_ambColor * base) + (base + p_ambColor);
 		float4 m_dir = saturate((dot(lightDir, normal) * base) + (base + ambColor));
 		//float4 m_dir = (dirRatio* ambColor * base) + (base + ambColor);
 		//return saturate(m_point + m_dir);
@@ -104,7 +105,7 @@ float4 main(V_OUT modulate) : SV_TARGET
 		//return spot;
 		//return m_point;
 		//return m_dir;
-		//return saturate(m_dir + spot);
+		return saturate(m_point + spot + m_dir);
 		//return saturate((pointratio * p_ambColor * base) + (base + p_ambColor));
 	//return float4(final, 1.0);
 }
